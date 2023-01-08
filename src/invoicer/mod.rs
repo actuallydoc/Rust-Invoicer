@@ -9,7 +9,10 @@ pub struct FontSizes {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct InvoiceStructure {}
+#[serde(rename_all = "camelCase")]
+pub struct InvoiceStructure {
+    pub font_sizes: FontSizes,
+}
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Partner {
@@ -48,9 +51,12 @@ impl Company {}
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Racun {
-    pub small_font: f64,
-    pub medium_font: f64,
-    pub large_font: f64,
+    pub invoice: Invoice,
+    pub config: InvoiceStructure,
+}
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Invoice {
     pub invoice_number: i32,
     pub invoice_date: String,
     pub service_date: String,
