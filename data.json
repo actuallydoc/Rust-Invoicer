@@ -9,7 +9,7 @@
       "companyName": "Company Name",
       "companyAddress": "Company Address",
       "companyPostalCode": "Company Postal Code",
-      "companyVatId": "Company Vat ID",
+      "companyVatId": "1234567",
       "companyIban": "Company Bank Account",
       "companySwift": "Company Swift",
       "companyCurrency": "Company Currency",
