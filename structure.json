@@ -1,0 +1,36 @@
+{
+  "small": 10.0,
+  "medium": 14.0,
+  "large": 16.0,
+  "companyName": "Company Name",
+  "companyAddress": "Company Address",
+  "companyPostal_code": "Company Postal Code",
+  "companyVat_id": "Company Vat ID",
+  "companyIban": "Company Bank Account",
+  "companySwift": "Company Swift",
+  "companyCurrency": "Company Currency",
+  "companyPhone": "Company Phone",
+  "companyRegistration_number": "Company Registration Number",
+  "companySignature": "Company Signature",
+  "companyVat_rate": 22.0,
+  "partnerName": "Partner name",
+  "partnerAddress": "Partner Address",
+  "partnerPostal_code": "Partner nam",
+  "partnerVat_id": "Partner Vat ID",
+  "services": [
+    {
+      "serviceName": "Service Name",
+      "serviceQuantity": 30,
+      "servicePrice": 30.0,
+      "serviceTax": 22.0,
+      "servicePayment": 30
+    },
+    {
+      "serviceName": "Service Name",
+      "serviceQuantity": 30,
+      "servicePrice": 30,
+      "serviceTax": 22.0,
+      "servicePayment": 30
+    }
+  ]
+}
