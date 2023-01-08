@@ -1,3 +1,4 @@
+use printpdf::Mm;
 use serde::{Deserialize, Serialize};
 use std::fs::read_to_string;
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -59,6 +60,7 @@ pub struct Racun {
 pub struct Invoice {
     pub invoice_number: i32,
     pub invoice_date: String,
+    pub invoice_location: String,
     pub service_date: String,
     pub due_date: String,
     pub partner: Partner,

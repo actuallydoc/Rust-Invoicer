@@ -1,9 +1,10 @@
 {
   "invoice": {
     "invoiceNumber": 69,
-    "invoiceDate": "21.5.2022",
-    "serviceDate": "21.6.2022",
-    "dueDate": "21.7.2022",
+    "invoiceLocation": "Invoice Location",
+    "invoiceDate": "21.05.2022",
+    "serviceDate": "21.06.2022",
+    "dueDate": "21.07.2022",
     "company": {
       "companyName": "Company Name",
       "companyAddress": "Company Address",
@@ -43,7 +44,7 @@
   },
   "config": {
     "fontSizes": {
-      "small": 10.0,
+      "small": 9.0,
       "medium": 14.0,
       "large": 16.0
     }
