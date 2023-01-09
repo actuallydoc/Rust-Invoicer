@@ -47,6 +47,7 @@ pub struct Company {
     pub company_phone: String,
     pub company_signature: String, //Base64 string
     pub company_vat_rate: f64,
+    pub company_business_registered_at: String,
 }
 impl Company {}
 #[derive(Serialize, Deserialize, Debug)]

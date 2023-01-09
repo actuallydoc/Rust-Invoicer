@@ -6,6 +6,19 @@ use std::fs::File;
 use std::io::BufWriter;
 mod invoicer;
 
+///////////Helper functions
+fn make_line(layer: &PdfLayerReference, x1: Mm, y1: Mm, x2: Mm, y2: Mm) {
+    let line_points = vec![(Point::new(x1, y1), false), (Point::new(x2, y2), false)];
+    let line = Line {
+        points: line_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: false,
+        is_clipping_path: false,
+    };
+    layer.add_shape(line);
+}
+
 fn main() {
     let fresh_racun = Racun::parse_from_file();
     //Document entry
@@ -45,8 +58,8 @@ fn main() {
     );
 
     //Make payment footer
-    render_payment_footer(&current_layer, &fresh_racun, &standard_font, y);
-
+    let y = render_payment_footer(&current_layer, &fresh_racun, &standard_font, y);
+    render_footer(&current_layer, &fresh_racun, &standard_font, y);
     //Save pdf entry
     doc.save(&mut BufWriter::new(
         File::create(format!("račun {}.pdf", fresh_racun.invoice.invoice_number)).unwrap(),
@@ -54,19 +67,37 @@ fn main() {
     .unwrap();
 }
 
+fn render_footer(layer: &PdfLayerReference, racun: &Racun, standard_font: &IndirectFontRef, y: Mm) {
+    let y = y - Mm(97.0);
+
+    make_line(&layer, Mm(13.0), y + Mm(2.0), Mm(197.0), y + Mm(2.0));
+
+    let y = y - Mm(1.0);
+    layer.use_text(
+        format!(
+            "Vpis v poslovni register pri {}. Matična št: {}",
+            racun.invoice.company.company_business_registered_at,
+            racun.invoice.company.company_registration_number
+        ),
+        9.0,
+        Mm(65.0),
+        y,
+        standard_font,
+    )
+}
+
 fn render_payment_footer(
     layer: &PdfLayerReference,
     racun: &Racun,
     standard_font: &IndirectFontRef,
     y: Mm,
-) {
+) -> Mm {
     let current_date = chrono::Utc::now().year();
-    println!("{}", current_date);
     let mut y = y - Mm(10.0);
     let base_x = Mm(15.0);
     layer.use_text(
         format!(
-            "Sklic za številko: {} {:04}-{}",
+            "Sklic za številko: {}00 {:04}-{}",
             racun.invoice.invoice_reference, racun.invoice.invoice_number, current_date
         ),
         9.0,
@@ -97,6 +128,8 @@ fn render_payment_footer(
         y,
         standard_font,
     );
+
+    y
 }
 
 fn render_summary_table(
@@ -110,23 +143,9 @@ fn render_summary_table(
     total_price_with_tax: f64,
 ) -> Mm {
     let y = y - Mm(15.0);
-    let line_points = vec![
-        (Point::new(Mm(13.0), y), false),
-        (Point::new(Mm(197.0), y), false),
-    ];
-    let upper = Line {
-        points: line_points,
-        is_closed: true,
-        has_fill: true,
-        has_stroke: true,
-        is_clipping_path: false,
-    };
-
-    layer.add_shape(upper);
+    make_line(&layer, Mm(13.0), y, Mm(197.0), y);
 
     //Adding text "Davčna stopnja", "Osnova za DDV", "DDV", "Znesek z DDV"
-    /*TODO Make a line below the base text */
-    println!("Tax: {:?}", calculated_tax_difference);
     let mut y = y - Mm(3.0);
     let tax_x = Mm(14.0);
     let base_tax_x = Mm(70.0);
@@ -235,20 +254,7 @@ fn render_service(
     }
 
     //Render a line under the service
-    let line_points = vec![
-        (Point::new(Mm(13.0), y), false),
-        (Point::new(Mm(197.0), y), false),
-    ];
-
-    let service_line = Line {
-        points: line_points,
-        is_closed: true,
-        has_fill: true,
-        has_stroke: true,
-        is_clipping_path: false,
-    };
-
-    layer.add_shape(service_line);
+    make_line(layer, Mm(13.0), y, Mm(197.0), y);
     (x, y - Mm(4.0))
 }
 
@@ -267,7 +273,6 @@ fn render_table_contents(
         x = new_x;
         y = new_y;
     }
-    println!("Total price: {}", total_price);
     let final_table_y = render_table_end(y, layer, racun, standard_font, total_price);
     //Render Total price , Tax price and Total price with tax
     final_table_y //Updated y and prices to put them into the summary table
@@ -293,20 +298,8 @@ fn render_table_end(
         y,
         font,
     );
-    //Make a line under the text
-    //Increase y for 1
-    let line_points = vec![
-        (Point::new(Mm(165.0), y - Mm(1.0)), false),
-        (Point::new(Mm(195.0), y - Mm(1.0)), false),
-    ];
-    let underline = Line {
-        points: line_points,
-        is_closed: true,
-        has_fill: true,
-        has_stroke: true,
-        is_clipping_path: false,
-    };
-    layer.add_shape(underline);
+
+    make_line(layer, Mm(165.0), y - Mm(1.0), Mm(195.0), y - Mm(1.0));
     ///////////////////////////////////////////
     //Decrease the Y by a couple of Mm
     let y = y - Mm(4.0);
@@ -327,18 +320,8 @@ fn render_table_end(
         y,
         font,
     );
-    let tax_points = vec![
-        (Point::new(Mm(165.0), y - Mm(1.0)), false),
-        (Point::new(Mm(195.0), y - Mm(1.0)), false),
-    ];
-    let underline_tax = Line {
-        points: tax_points,
-        is_closed: true,
-        has_fill: true,
-        has_stroke: true,
-        is_clipping_path: false,
-    };
-    layer.add_shape(underline_tax);
+
+    make_line(layer, Mm(165.0), y - Mm(1.0), Mm(195.0), y - Mm(1.0));
 
     //To pay field
     let y = y - Mm(4.0);
@@ -355,20 +338,7 @@ fn render_table_end(
     );
     //Decrease the Y by a couple of Mm
     let y = y - Mm(1.0);
-    //Final line
-    let total_points = vec![
-        (Point::new(Mm(165.0), y), false),
-        (Point::new(Mm(195.0), y), false),
-    ];
-    let underline_total = Line {
-        points: total_points,
-        is_closed: true,
-        has_fill: true,
-        has_stroke: true,
-        is_clipping_path: false,
-    };
-    layer.add_shape(underline_total);
-
+    make_line(layer, Mm(165.0), y, Mm(195.0), y);
     return (
         y,
         total_price,
@@ -399,19 +369,7 @@ fn render_table_header(layer: &PdfLayerReference, racun: &Racun, bold: &Indirect
     x += Mm(15.0);
     layer.use_text("Znesek", racun.config.font_sizes.small, x, y, &bold);
 
-    let line_points = vec![
-        (Point::new(Mm(13.0), Mm(190.0)), false),
-        (Point::new(Mm(197.0), Mm(190.0)), false),
-    ];
-    let upper = Line {
-        points: line_points,
-        is_closed: true,
-        has_fill: true,
-        has_stroke: true,
-        is_clipping_path: false,
-    };
-
-    layer.add_shape(upper);
+    make_line(layer, Mm(13.0), Mm(190.0), Mm(197.0), Mm(190.0));
 }
 
 fn render_partner_header(

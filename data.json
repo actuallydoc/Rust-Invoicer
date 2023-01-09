@@ -21,7 +21,8 @@
       "companyPhone": "031 111 111",
       "companyRegistrationNumber": "331XD123",
       "companySignature": "Company Signature",
-      "companyVatRate": 22.0
+      "companyVatRate": 22.0,
+      "companyBusinessRegisteredAt": "Ajpes"
     },
     "partner": {
       "partnerName": "Partner name",
