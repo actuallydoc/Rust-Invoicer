@@ -1,21 +1,25 @@
 {
   "invoice": {
     "invoiceCurrency": "€",
-    "invoiceNumber": 69,
-    "invoiceLocation": "Invoice Location",
+    "invoiceTax": 22.0,
+    "invoiceNumber": 150,
+    "invoiceReference": "SI",
+    "createdBy": "Maj Knez",
+    "invoiceLocation": "Maribor",
     "invoiceDate": "21.05.2022",
     "serviceDate": "21.06.2022",
     "dueDate": "21.07.2022",
     "company": {
-      "companyName": "Company Name",
-      "companyAddress": "Company Address",
-      "companyPostalCode": "Company Postal Code",
+      "companyName": "TEST COMPANY S.P.",
+      "companyAddress": "Cesta Maribor 12",
+      "companyPostalCode": "8555, Maribor",
       "companyVatId": "1234567",
-      "companyIban": "Company Bank Account",
-      "companySwift": "Company Swift",
-      "companyCurrency": "Company Currency",
-      "companyPhone": "Company Phone",
-      "companyRegistrationNumber": "Company Registration Number",
+      "companyIban": "SI56 1234 1234 1234 123",
+      "companyBankname": "SBERBANK d.d",
+      "companySwift": "XD123XD",
+      "companyCurrency": "EURO",
+      "companyPhone": "031 111 111",
+      "companyRegistrationNumber": "331XD123",
       "companySignature": "Company Signature",
       "companyVatRate": 22.0
     },
@@ -28,35 +32,10 @@
 
     "services": [
       {
-        "serviceName": "Service 1",
-        "serviceQuantity": 30,
-        "servicePrice": 30.0,
-        "serviceTax": 22,
-        "servicePayment": 50.3,
-        "serviceCurrency": "€"
-      },
-      {
-        "serviceName": "Service 1",
-        "serviceQuantity": 30,
-        "servicePrice": 30.0,
-        "serviceTax": 22,
-        "servicePayment": 50.3,
-        "serviceCurrency": "€"
-      },
-      {
-        "serviceName": "Service 1",
-        "serviceQuantity": 30,
-        "servicePrice": 30.0,
-        "serviceTax": 22,
-        "servicePayment": 50.3,
-        "serviceCurrency": "€"
-      },
-      {
-        "serviceName": "VLEKA VOZILA V OKVARI SEAT ALTEA\nREG: NMFH537\nLASTNIK: TRGOVINA GARFIELD NATAŠA PERC S.P.\nREFERENCA: TBSC202301030067\nRELACIJA:BOŠTANJ-GABRIJELE-VELENJE-BOŠTANJ",
-        "serviceQuantity": 30,
-        "servicePrice": 30.525,
+        "serviceName": "VLEKA VOZILA V OKVARI SEAT ALTEA\nREG: MB1212\nLASTNIK: CUSTOMER\nREFERENCA: TESTREF\nRELACIJA:CELJE-GABRIJELE-MARIBOR-VELENJE",
+        "serviceQuantity": 1,
+        "servicePrice": 152.22,
         "serviceTax": 22.0,
-        "servicePayment": 35.2,
         "serviceCurrency": "€"
       }
     ]

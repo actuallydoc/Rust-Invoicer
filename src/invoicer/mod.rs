@@ -29,7 +29,6 @@ pub struct Service {
     pub service_quantity: i32,
     pub service_price: f64,
     pub service_tax: f64,
-    pub service_payment: f64,
     pub service_currency: String,
 }
 
@@ -40,6 +39,7 @@ pub struct Company {
     pub company_name: String,
     pub company_address: String,
     pub company_postal_code: String,
+    pub company_bankname: String,
     pub company_vat_id: String,
     pub company_iban: String,
     pub company_swift: String,
@@ -66,7 +66,10 @@ pub struct Invoice {
     pub due_date: String,
     pub partner: Partner,
     pub company: Company,
+    pub invoice_tax: f64,
+    pub invoice_reference: String,
     pub services: Vec<Service>,
+    pub created_by: String,
 }
 
 impl Partner {}

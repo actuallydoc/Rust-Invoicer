@@ -1,4 +1,5 @@
 use crate::invoicer::Racun;
+use chrono::Datelike;
 use invoicer::Service;
 use printpdf::*;
 use std::fs::File;
@@ -30,7 +31,22 @@ fn main() {
     render_company_header(&current_layer, &fresh_racun, &standard_font, &bold_font);
     render_partner_header(&current_layer, &fresh_racun, &standard_font);
     render_table_header(&current_layer, &fresh_racun, &bold_font);
-    render_table_contents(&current_layer, &fresh_racun, &bold_font, &standard_font);
+    let (y, total_price, calculated_tax_difference, total_price_with_tax) =
+        render_table_contents(&current_layer, &fresh_racun, &standard_font);
+    let y = render_summary_table(
+        &current_layer,
+        &fresh_racun,
+        &standard_font,
+        &bold_font,
+        y,
+        total_price,
+        calculated_tax_difference,
+        total_price_with_tax,
+    );
+
+    //Make payment footer
+    render_payment_footer(&current_layer, &fresh_racun, &standard_font, y);
+
     //Save pdf entry
     doc.save(&mut BufWriter::new(
         File::create(format!("račun {}.pdf", fresh_racun.invoice.invoice_number)).unwrap(),
@@ -38,7 +54,131 @@ fn main() {
     .unwrap();
 }
 
-//Helper function to render a organized service
+fn render_payment_footer(
+    layer: &PdfLayerReference,
+    racun: &Racun,
+    standard_font: &IndirectFontRef,
+    y: Mm,
+) {
+    let current_date = chrono::Utc::now().year();
+    println!("{}", current_date);
+    let mut y = y - Mm(10.0);
+    let base_x = Mm(15.0);
+    layer.use_text(
+        format!(
+            "Sklic za številko: {} {:04}-{}",
+            racun.invoice.invoice_reference, racun.invoice.invoice_number, current_date
+        ),
+        9.0,
+        base_x,
+        y,
+        standard_font,
+    );
+    y = y - Mm(3.0);
+    layer.use_text(
+        format!("Sestavil: {}", racun.invoice.created_by),
+        9.0,
+        base_x,
+        y,
+        standard_font,
+    );
+    y = y - Mm(4.0);
+
+    //Payment info /method
+    layer.use_text(
+        format!(
+            "Plačilo na TRR: {} {} ., SWIFT: {}",
+            racun.invoice.company.company_iban,
+            racun.invoice.company.company_bankname,
+            racun.invoice.company.company_swift
+        ),
+        9.0,
+        base_x,
+        y,
+        standard_font,
+    );
+}
+
+fn render_summary_table(
+    layer: &PdfLayerReference,
+    racun: &Racun,
+    standard_font: &IndirectFontRef,
+    bold_font: &IndirectFontRef,
+    y: Mm,
+    total_price: f64,
+    calculated_tax_difference: f64,
+    total_price_with_tax: f64,
+) -> Mm {
+    let y = y - Mm(15.0);
+    let line_points = vec![
+        (Point::new(Mm(13.0), y), false),
+        (Point::new(Mm(197.0), y), false),
+    ];
+    let upper = Line {
+        points: line_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: true,
+        is_clipping_path: false,
+    };
+
+    layer.add_shape(upper);
+
+    //Adding text "Davčna stopnja", "Osnova za DDV", "DDV", "Znesek z DDV"
+    /*TODO Make a line below the base text */
+    println!("Tax: {:?}", calculated_tax_difference);
+    let mut y = y - Mm(3.0);
+    let tax_x = Mm(14.0);
+    let base_tax_x = Mm(70.0);
+    let tax_difference_x = Mm(125.0);
+    let total_price_x = Mm(150.0);
+    layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
+
+    layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
+
+    layer.use_text("DDV", 9.0, tax_difference_x, y, bold_font);
+
+    layer.use_text("Znesek z DDV", 9.0, total_price_x, y, bold_font);
+    y = y - Mm(4.0);
+    layer.use_text(
+        format!("DDV {}%", racun.invoice.invoice_tax),
+        9.0,
+        tax_x,
+        y,
+        standard_font,
+    );
+    layer.use_text(
+        format!("{:.2}{}", total_price, racun.invoice.invoice_currency),
+        9.0,
+        base_tax_x,
+        y,
+        standard_font,
+    );
+
+    layer.use_text(
+        format!(
+            "{:.2?}{}",
+            total_price_with_tax, racun.invoice.invoice_currency
+        ),
+        9.0,
+        total_price_x,
+        y,
+        standard_font,
+    );
+    layer.use_text(
+        format!(
+            "{:.2}{}",
+            calculated_tax_difference, racun.invoice.invoice_currency
+        ),
+        9.0,
+        tax_difference_x,
+        y,
+        standard_font,
+    );
+
+    y
+}
+
 fn render_service(
     x: Mm,
     mut y: Mm,
@@ -46,14 +186,16 @@ fn render_service(
     font: &IndirectFontRef,
     service: &Service,
 ) -> (Mm, Mm) {
+    //Converting it to float and getting total price of services multiplied by quantity
     let service_by_quantity_price = service.service_price * (service.service_quantity as f64);
+    //Adding a vat percentage price to the service price
     let new_value = add_percent(service_by_quantity_price, 0.22);
-
     //Render service with a price and ddv percentage
     //Always a constant
     let service_x = Mm(180.0);
+    //Rendering price that has to be paid included with tax
     layer.use_text(
-        format!("{}{}", new_value, service.service_currency),
+        format!("{:.2}{}", new_value, service.service_currency),
         9.0,
         service_x,
         y,
@@ -71,7 +213,10 @@ fn render_service(
     let price_x = Mm(145.0);
     //Convert a float to an int
 
-    let formated_price = format!("{}{}", service_by_quantity_price, service.service_currency);
+    let formated_price = format!(
+        "{:.2}{}",
+        service_by_quantity_price, service.service_currency
+    );
     layer.use_text(formated_price, 9.0, price_x, y, font);
 
     //Render service quantity
@@ -110,16 +255,126 @@ fn render_service(
 fn render_table_contents(
     layer: &PdfLayerReference,
     racun: &Racun,
-    bold: &IndirectFontRef,
     standard_font: &IndirectFontRef,
-) {
+) -> (Mm, f64, f64, f64) {
     let mut x = Mm(15.0);
     let mut y = Mm(185.0);
+    let mut total_price = 0.0;
+    //Render services with the lines above
     for service in racun.invoice.services.iter() {
+        total_price += service.service_price * (service.service_quantity as f64);
         let (new_x, new_y) = render_service(x, y, layer, standard_font, service);
         x = new_x;
         y = new_y;
     }
+    println!("Total price: {}", total_price);
+    let final_table_y = render_table_end(y, layer, racun, standard_font, total_price);
+    //Render Total price , Tax price and Total price with tax
+    final_table_y //Updated y and prices to put them into the summary table
+}
+
+fn render_table_end(
+    y: Mm,
+    layer: &PdfLayerReference,
+    racun: &Racun,
+    font: &IndirectFontRef,
+    total_price: f64,
+) -> (Mm, f64, f64, f64) {
+    //Constant location of the Field
+    let x = Mm(165.0);
+    //Render total price without tax
+    layer.use_text(
+        format!(
+            "Skupaj: {:.2}{}",
+            total_price, racun.invoice.invoice_currency
+        ),
+        9.0,
+        x,
+        y,
+        font,
+    );
+    //Make a line under the text
+    //Increase y for 1
+    let line_points = vec![
+        (Point::new(Mm(165.0), y - Mm(1.0)), false),
+        (Point::new(Mm(195.0), y - Mm(1.0)), false),
+    ];
+    let underline = Line {
+        points: line_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: true,
+        is_clipping_path: false,
+    };
+    layer.add_shape(underline);
+    ///////////////////////////////////////////
+    //Decrease the Y by a couple of Mm
+    let y = y - Mm(4.0);
+    //Render tax
+    //Always a constant
+    let tax_x = Mm(165.0);
+    //Calculate how much is the tax difference
+
+    let total_price_with_tax = total_price * (1.00 + (racun.invoice.invoice_tax / 100.00));
+    let calculated_tax_difference = total_price_with_tax - total_price;
+    layer.use_text(
+        format!(
+            "DDV: {:.2}{}",
+            calculated_tax_difference, racun.invoice.invoice_currency
+        ),
+        9.0,
+        tax_x,
+        y,
+        font,
+    );
+    let tax_points = vec![
+        (Point::new(Mm(165.0), y - Mm(1.0)), false),
+        (Point::new(Mm(195.0), y - Mm(1.0)), false),
+    ];
+    let underline_tax = Line {
+        points: tax_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: true,
+        is_clipping_path: false,
+    };
+    layer.add_shape(underline_tax);
+
+    //To pay field
+    let y = y - Mm(4.0);
+    let to_pay_x = Mm(165.0);
+    layer.use_text(
+        format!(
+            "Za plačilo: {:.2}{}",
+            total_price_with_tax, racun.invoice.invoice_currency
+        ),
+        9.0,
+        to_pay_x,
+        y,
+        font,
+    );
+    //Decrease the Y by a couple of Mm
+    let y = y - Mm(1.0);
+    //Final line
+    let total_points = vec![
+        (Point::new(Mm(165.0), y), false),
+        (Point::new(Mm(195.0), y), false),
+    ];
+    let underline_total = Line {
+        points: total_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: true,
+        is_clipping_path: false,
+    };
+    layer.add_shape(underline_total);
+
+    return (
+        y,
+        total_price,
+        calculated_tax_difference,
+        total_price_with_tax,
+    );
 }
 
 fn render_table_header(layer: &PdfLayerReference, racun: &Racun, bold: &IndirectFontRef) {
