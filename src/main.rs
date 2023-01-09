@@ -1,12 +1,12 @@
 use crate::invoicer::Racun;
+use invoicer::Service;
 use printpdf::*;
 use std::fs::File;
 use std::io::BufWriter;
 mod invoicer;
 
 fn main() {
-    let mut fresh_racun = Racun::parse_from_file();
-
+    let fresh_racun = Racun::parse_from_file();
     //Document entry
     let (doc, page1, layer1) = PdfDocument::new(
         fresh_racun.invoice.invoice_number.to_string(),
@@ -29,8 +29,8 @@ fn main() {
     render_invoice_header(&current_layer, &fresh_racun, &standard_font);
     render_company_header(&current_layer, &fresh_racun, &standard_font, &bold_font);
     render_partner_header(&current_layer, &fresh_racun, &standard_font);
-    let (x, y) = render_table_header(&current_layer, &fresh_racun, &bold_font);
-    render_table_contents(&current_layer, &fresh_racun, &standard_font, x, y);
+    render_table_header(&current_layer, &fresh_racun, &bold_font);
+    render_table_contents(&current_layer, &fresh_racun, &bold_font, &standard_font);
     //Save pdf entry
     doc.save(&mut BufWriter::new(
         File::create(format!("račun {}.pdf", fresh_racun.invoice.invoice_number)).unwrap(),
@@ -38,24 +38,93 @@ fn main() {
     .unwrap();
 }
 
+//Helper function to render a organized service
+fn render_service(
+    x: Mm,
+    mut y: Mm,
+    layer: &PdfLayerReference,
+    font: &IndirectFontRef,
+    service: &Service,
+) -> (Mm, Mm) {
+    let service_by_quantity_price = service.service_price * (service.service_quantity as f64);
+    let new_value = add_percent(service_by_quantity_price, 0.22);
+
+    //Render service with a price and ddv percentage
+    //Always a constant
+    let service_x = Mm(180.0);
+    layer.use_text(
+        format!("{}{}", new_value, service.service_currency),
+        9.0,
+        service_x,
+        y,
+        font,
+    );
+    //Render service DDV percentage
+    //Always a constant
+    let ddv_x = Mm(165.0);
+    //Formated text add a percentage sign to the service_tax string
+    let formated_vat = format!("{}%", service.service_tax);
+
+    layer.use_text(formated_vat, 9.0, ddv_x, y, font);
+    //Render service price
+    //Always a constant
+    let price_x = Mm(145.0);
+    //Convert a float to an int
+
+    let formated_price = format!("{}{}", service_by_quantity_price, service.service_currency);
+    layer.use_text(formated_price, 9.0, price_x, y, font);
+
+    //Render service quantity
+    //Always a constant
+    let quantity_x = Mm(125.0);
+    layer.use_text(
+        &service.service_quantity.to_string(),
+        9.0,
+        quantity_x,
+        y,
+        font,
+    );
+    for line in service.service_name.lines() {
+        layer.use_text(line, 9.0, x, y, font);
+        y -= Mm(4.0);
+    }
+
+    //Render a line under the service
+    let line_points = vec![
+        (Point::new(Mm(13.0), y), false),
+        (Point::new(Mm(197.0), y), false),
+    ];
+
+    let service_line = Line {
+        points: line_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: true,
+        is_clipping_path: false,
+    };
+
+    layer.add_shape(service_line);
+    (x, y - Mm(4.0))
+}
+
 fn render_table_contents(
     layer: &PdfLayerReference,
     racun: &Racun,
     bold: &IndirectFontRef,
-    mut x: Mm,
-    mut y: Mm,
+    standard_font: &IndirectFontRef,
 ) {
-    //TODO
-    todo!()
+    let mut x = Mm(15.0);
+    let mut y = Mm(185.0);
+    for service in racun.invoice.services.iter() {
+        let (new_x, new_y) = render_service(x, y, layer, standard_font, service);
+        x = new_x;
+        y = new_y;
+    }
 }
 
-fn render_table_header(
-    layer: &PdfLayerReference,
-    racun: &Racun,
-    bold: &IndirectFontRef,
-) -> (Mm, Mm) {
+fn render_table_header(layer: &PdfLayerReference, racun: &Racun, bold: &IndirectFontRef) {
     //Opis
-    let mut y = Mm(193.0);
+    let y = Mm(193.0);
     let mut x = Mm(15.0);
     layer.use_text("Opis", racun.config.font_sizes.small, x, y, &bold);
 
@@ -72,10 +141,22 @@ fn render_table_header(
     layer.use_text("DDV", racun.config.font_sizes.small, x, y, &bold);
 
     //Znesek
-    x += Mm(18.0);
+    x += Mm(15.0);
     layer.use_text("Znesek", racun.config.font_sizes.small, x, y, &bold);
 
-    (x, y)
+    let line_points = vec![
+        (Point::new(Mm(13.0), Mm(190.0)), false),
+        (Point::new(Mm(197.0), Mm(190.0)), false),
+    ];
+    let upper = Line {
+        points: line_points,
+        is_closed: true,
+        has_fill: true,
+        has_stroke: true,
+        is_clipping_path: false,
+    };
+
+    layer.add_shape(upper);
 }
 
 fn render_partner_header(
@@ -204,6 +285,11 @@ fn render_company_header(
         Mm(243.0),
         &standard_font,
     );
+}
+
+fn add_percent(original_value: f64, percent: f64) -> f64 {
+    let percent_value = original_value * percent;
+    original_value + percent_value
 }
 
 fn render_invoice_header(

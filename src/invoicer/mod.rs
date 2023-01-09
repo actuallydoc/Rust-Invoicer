@@ -1,4 +1,3 @@
-use printpdf::Mm;
 use serde::{Deserialize, Serialize};
 use std::fs::read_to_string;
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -31,6 +30,7 @@ pub struct Service {
     pub service_price: f64,
     pub service_tax: f64,
     pub service_payment: f64,
+    pub service_currency: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -62,6 +62,7 @@ pub struct Invoice {
     pub invoice_date: String,
     pub invoice_location: String,
     pub service_date: String,
+    pub invoice_currency: String,
     pub due_date: String,
     pub partner: Partner,
     pub company: Company,
@@ -73,9 +74,7 @@ impl Partner {}
 impl Racun {
     pub fn parse_from_file() -> Self {
         let data = read_to_string("data.json").expect("Cannot read file");
-        println!("{}", data);
         let parsed: Self = serde_json::from_str(&data).expect("JSON does not have correct format.");
-        println!("{:#?}", parsed);
         parsed
     }
 }

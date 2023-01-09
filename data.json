@@ -1,5 +1,6 @@
 {
   "invoice": {
+    "invoiceCurrency": "€",
     "invoiceNumber": 69,
     "invoiceLocation": "Invoice Location",
     "invoiceDate": "21.05.2022",
@@ -21,24 +22,42 @@
     "partner": {
       "partnerName": "Partner name",
       "partnerAddress": "Partner Address",
-      "partnerPostalCode": "Partner nam",
+      "partnerPostalCode": "City, Postal  code",
       "partnerVatId": "Partner Vat ID"
     },
 
     "services": [
       {
-        "serviceName": "Service Name",
+        "serviceName": "Service 1",
         "serviceQuantity": 30,
         "servicePrice": 30.0,
-        "serviceTax": 22.5,
-        "servicePayment": 50.3
+        "serviceTax": 22,
+        "servicePayment": 50.3,
+        "serviceCurrency": "€"
       },
       {
-        "serviceName": "Service Name",
+        "serviceName": "Service 1",
         "serviceQuantity": 30,
         "servicePrice": 30.0,
+        "serviceTax": 22,
+        "servicePayment": 50.3,
+        "serviceCurrency": "€"
+      },
+      {
+        "serviceName": "Service 1",
+        "serviceQuantity": 30,
+        "servicePrice": 30.0,
+        "serviceTax": 22,
+        "servicePayment": 50.3,
+        "serviceCurrency": "€"
+      },
+      {
+        "serviceName": "VLEKA VOZILA V OKVARI SEAT ALTEA\nREG: NMFH537\nLASTNIK: TRGOVINA GARFIELD NATAŠA PERC S.P.\nREFERENCA: TBSC202301030067\nRELACIJA:BOŠTANJ-GABRIJELE-VELENJE-BOŠTANJ",
+        "serviceQuantity": 30,
+        "servicePrice": 30.525,
         "serviceTax": 22.0,
-        "servicePayment": 35.2
+        "servicePayment": 35.2,
+        "serviceCurrency": "€"
       }
     ]
   },
