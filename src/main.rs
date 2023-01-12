@@ -4,10 +4,9 @@ use invoicer::init;
 mod gui;
 mod invoicer;
 fn main() {
-    let fresh_racun = Racun::parse_from_file();
-    //Document generation with the json data
+    // let fresh_racun = Racun::parse_from_file();
     //Todo sign field and add a base64 for a sign.
-    init(&fresh_racun);
+    // init(&fresh_racun);
 
     entry();
     //1.Create a gui
