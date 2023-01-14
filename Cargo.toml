@@ -13,5 +13,7 @@ chrono = "0.4.23"
 egui = "0.20.1"
 eframe = "0.20.1"
 json = "0.12.4"
+pdfium-render = "0.7.27"
+image = "0.24.5"
 
 

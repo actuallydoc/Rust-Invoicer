@@ -8,7 +8,6 @@ use fs::File;
 use std::env;
 use std::fmt::{format, Debug};
 use std::fs::{self, DirEntry};
-
 use std::io::Read;
 use std::path::PathBuf;
 //Create a gui struct
@@ -27,7 +26,6 @@ struct GuiApp {
     show_confirmation_dialog: bool,
     invoice_paths: Vec<DirEntry>,
     json_data: Vec<Racun>,
-    invoice_prices: Vec<f64>,
 }
 
 trait Data {
@@ -113,48 +111,51 @@ impl eframe::App for GuiApp {
                 );
                 ui.add_space(10.0);
                 egui::Grid::new("invoice_grid").show(ui, |ui| {
-                    //fetch the invoices and display them
-                    ui.horizontal(|ui| ui.colored_label(WHITE, "Invoice number"));
-                    ui.colored_label(WHITE, "Invoice Date");
-                    ui.colored_label(WHITE, "Service Date");
-                    ui.colored_label(WHITE, "Due Date");
-                    ui.colored_label(WHITE, "Partner");
-                    ui.colored_label(WHITE, "Provider");
-                    ui.colored_label(WHITE, "Status");
-                    ui.colored_label(WHITE, "Amount");
-                    ui.colored_label(WHITE, "Currency");
-                    ui.colored_label(WHITE, "Actions");
-                    ui.end_row();
-
-                    for invoice in &self.json_data {
-                        ui.horizontal(|ui| ui.label(invoice.invoice.invoice_number.to_string()));
-                        ui.label(invoice.invoice.invoice_date.to_string());
-                        ui.label(invoice.invoice.service_date.to_string());
-                        ui.label(invoice.invoice.due_date.to_string());
-                        ui.label(invoice.invoice.partner.partner_name.to_string());
-                        ui.label(invoice.invoice.company.company_name.to_string());
-                        ui.label(invoice.invoice.status.to_string());
-                        for service in &invoice.invoice.services {
-                            //Calculate the total price of the invoice
-                            let mut total_price = 0.0;
-                            total_price += service.service_price + service.service_tax;
-                            ui.label(total_price.to_string());
-                        }
-                        ui.label(invoice.invoice.invoice_currency.to_string());
-                        ui.horizontal(|ui| {
-                            //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
-                            //View will open the invoice in a pdf viewer
-                            //Delete will delete the invoice
-                            ui.button("View");
-                            ui.button("Edit");
-                            ui.button("Delete");
-                        });
+                    if self.json_data.is_empty() {
+                        ui.add(widgets::Spinner::new());
+                    } else {
+                        //fetch the invoices and display them
+                        ui.horizontal(|ui| ui.colored_label(WHITE, "Invoice number"));
+                        ui.colored_label(WHITE, "Invoice Date");
+                        ui.colored_label(WHITE, "Service Date");
+                        ui.colored_label(WHITE, "Due Date");
+                        ui.colored_label(WHITE, "Partner");
+                        ui.colored_label(WHITE, "Provider");
+                        ui.colored_label(WHITE, "Status");
+                        ui.colored_label(WHITE, "Amount");
+                        ui.colored_label(WHITE, "Currency");
+                        ui.colored_label(WHITE, "Actions");
                         ui.end_row();
+                        for invoice in &self.json_data {
+                            ui.horizontal(|ui| {
+                                ui.label(invoice.invoice.invoice_number.to_string())
+                            });
+                            ui.label(invoice.invoice.invoice_date.to_string());
+                            ui.label(invoice.invoice.service_date.to_string());
+                            ui.label(invoice.invoice.due_date.to_string());
+                            ui.label(invoice.invoice.partner.partner_name.to_string());
+                            ui.label(invoice.invoice.company.company_name.to_string());
+                            ui.label(invoice.invoice.status.to_string());
+                            for service in &invoice.invoice.services {
+                                //Calculate the total price of the invoice
+                                let mut total_price = 0.0;
+                                total_price += service.service_price + service.service_tax;
+                                ui.label(total_price.to_string());
+                            }
+                            ui.label(invoice.invoice.invoice_currency.to_string());
+                            ui.horizontal(|ui| {
+                                //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
+                                //View will open the invoice in a pdf viewer
+                                //Delete will delete the invoice
+                                if ui.button("View").clicked() {};
+                                if ui.button("Edit").clicked() {};
+                                if ui.button("Delete").clicked() {};
+                            });
+                            ui.end_row();
+                        }
                     }
                 });
             });
-            //Loading animation spinner very useful.
-            //ui.add(widgets::Spinner::new());
         });
 
         if self.show_confirmation_dialog {

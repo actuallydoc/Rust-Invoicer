@@ -2,9 +2,14 @@ use chrono::Datelike;
 use printpdf::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{read_to_string, File},
-    io::BufWriter,
+    env,
+    error::Error,
+    fs::{self, read_to_string, File},
+    io::{BufWriter, Write},
+    path::PathBuf,
 };
+
+use crate::render::export_pdf_to_jpegs;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "camelCase")]
@@ -611,9 +616,75 @@ pub fn init(racun: &Racun) {
     //Make payment footer
     let y = render_payment_footer(&current_layer, &racun, &standard_font, y);
     render_footer(&current_layer, &racun, &standard_font, y);
-    //Save pdf entry
-    doc.save(&mut BufWriter::new(
-        File::create(format!("račun {}.pdf", racun.invoice.invoice_number)).unwrap(),
-    ))
-    .expect("Couldn't save pdf file");
+    //Save pdf entry and return the path to the pdf file
+    let path = save_invoice(doc, &racun);
+
+    match path {
+        Some((a, jpg_file_path)) => {
+            match export_pdf_to_jpegs(
+                a.to_str().expect("Coulnd't convert to &str"),
+                jpg_file_path.to_str().expect("Coulnd't convert to &str"),
+                None,
+                racun.invoice.invoice_number,
+            ) {
+                Ok(_) => {
+                    println!("Invoice image saved ✔");
+                    println!("Invoice saved {}", jpg_file_path.to_str().unwrap());
+                    save_to_json(&racun);
+                    println!("Invoice json saved ✔");
+                }
+                Err(e) => println!("Error saving invoice image: {}", e),
+            }
+        }
+        None => println!("Error Already exists or couldn't save pdf"),
+    }
+    //Save the json data to output.json
+
+    //Convert invoice to jpg
+}
+
+pub fn save_to_json(racun: &Racun) {
+    let cwd = env::current_dir().expect("Couldn't get current directory");
+    let invoice_dir = cwd.join("invoices");
+    let invoice_number_dir = invoice_dir.join(racun.invoice.invoice_number.to_string());
+
+    if !invoice_number_dir.exists() {
+        fs::create_dir(&invoice_number_dir).expect("Couldn't create invoice directory");
+    }
+    let invoice_json = invoice_number_dir.join("output.json");
+    if invoice_number_dir.exists() {
+        //Convert the struct into json string
+        let json = serde_json::to_string(&racun).expect("Couldn't convert to json");
+        //Write the json string to the file
+        let mut file = File::create(invoice_json).unwrap();
+        file.write_all(json.as_bytes()).unwrap();
+        println!("✔");
+    } else {
+        panic!("The invoice number directory doesn't exist");
+    }
+}
+
+pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf, PathBuf)> {
+    //Firstly make a new directory in the invoice directory and the name is the invoice number
+    //Then save the invoice in that directory
+    let cwd = env::current_dir().expect("Couldn't get current directory");
+    let invoice_dir = cwd.join("invoices");
+    let invoice_number_dir = invoice_dir.join(racun.invoice.invoice_number.to_string());
+
+    if !invoice_dir.exists() {
+        // println!("Creating invoice directory");
+        fs::create_dir(invoice_dir).expect("❌");
+        print!("Created invoice directory ✔");
+    }
+    if invoice_number_dir.exists() {
+        None
+    } else {
+        fs::create_dir(&invoice_number_dir).expect("The invoice number directory already exists");
+        let pdf_path =
+            invoice_number_dir.join(format!("racun {}.pdf", racun.invoice.invoice_number));
+        doc.save(&mut BufWriter::new(File::create(&pdf_path).unwrap()))
+            .expect("Couldn't save pdf file");
+        println!("✔");
+        Some((pdf_path, invoice_number_dir))
+    }
 }
