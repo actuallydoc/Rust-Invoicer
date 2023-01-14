@@ -9,6 +9,7 @@
     "invoiceDate": "21.05.2022",
     "serviceDate": "21.06.2022",
     "dueDate": "21.07.2022",
+    "status": "PAID",
     "company": {
       "companyName": "TEST COMPANY S.P.",
       "companyAddress": "Cesta Maribor 12",

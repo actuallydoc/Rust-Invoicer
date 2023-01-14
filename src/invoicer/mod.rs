@@ -77,6 +77,7 @@ pub struct Invoice {
     pub invoice_reference: String,
     pub services: Vec<Service>,
     pub created_by: String,
+    pub status: String,
 }
 
 impl Racun {

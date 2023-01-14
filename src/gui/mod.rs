@@ -1,13 +1,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::Invoice;
+use crate::invoicer::Racun;
 use eframe;
 use eframe::egui;
 use egui::RichText;
 use egui::{widgets, Color32};
+use fs::File;
 use std::env;
-use std::fmt::Debug;
+use std::fmt::{format, Debug};
 use std::fs::{self, DirEntry};
 
+use std::io::Read;
 use std::path::PathBuf;
 //Create a gui struct
 
@@ -24,12 +26,13 @@ struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
     invoice_paths: Vec<DirEntry>,
-    json_data: Vec<Invoice>,
+    json_data: Vec<Racun>,
+    invoice_prices: Vec<f64>,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
-    fn parse_jsons(&mut self) -> Vec<Invoice>;
+    fn parse_jsons(&mut self);
     fn new() -> Self;
 }
 
@@ -39,7 +42,8 @@ impl Data for GuiApp {
             ..Default::default()
         }; // or Self::default()
         this.invoice_paths = this.get_invoices();
-        this.json_data = this.parse_jsons();
+        this.parse_jsons();
+        // this.json_data = this.parse_jsons();
         this
     }
 
@@ -55,31 +59,35 @@ impl Data for GuiApp {
             .filter_map(|entry| entry.ok())
             .filter(|entry| entry.file_type().unwrap().is_dir())
             .collect();
-        //println!("Data sent: {:?}", folders);
         folders
     }
-    #[allow(unused_mut)]
-    fn parse_jsons(&mut self) -> Vec<Invoice> {
+    fn parse_jsons(&mut self) {
         let paths = self.get_invoices();
         //Make a vector of invoices
-        let mut json_data: Vec<Invoice> = Vec::new();
+        let mut json_data: Vec<Racun> = Vec::new();
         for path in paths {
-            let mut _path = path.path();
-            _path.push("output.json");
-            println!("Path: {:?}", _path);
-
-            let readen = fs::read_to_string(_path).expect("Unable to read file");
-            println!("Readen: {:?}", readen);
-            // let data = fs::read_to_string(cwd).expect("Unable to read file");
-            // let parsed: Invoice =
-            //     serde_json::from_str(&data).expect("JSON does not have correct format.");
-
-            // println!("Parsed data: {:?}", parsed);
-            // json_data.push(parsed);
+            let mut file_path = path.path();
+            file_path.push("output.json");
+            let mut file_content = match File::open(file_path.to_str().unwrap().to_string()) {
+                Ok(file) => file,
+                Err(_) => panic!("Could not read the json file"),
+            };
+            let mut contents = String::new();
+            match file_content.read_to_string(&mut contents) {
+                Ok(_) => {
+                    println!("File contents: {}", contents);
+                    let invoice: Racun = match serde_json::from_str(&contents) {
+                        Ok(invoice) => invoice,
+                        Err(err) => panic!("Could not deserialize the file, error code: {}", err),
+                    };
+                    json_data.push(invoice);
+                }
+                Err(err) => panic!("Could not read the json file, error code: {}", err),
+            };
         }
-        println!("Parsed json data: {:?}", json_data);
-        json_data
-        //Vec::new()
+        self.json_data = json_data;
+        println!("Json data: {:?}", self.json_data)
+        // Open the json file
     }
 }
 
@@ -118,25 +126,31 @@ impl eframe::App for GuiApp {
                     ui.colored_label(WHITE, "Actions");
                     ui.end_row();
 
-                    for invoice in self.json_data.clone() {
-                        ui.colored_label(WHITE, format!("{}", &invoice.invoice_number));
-                        ui.colored_label(WHITE, &invoice.invoice_date);
-                        ui.colored_label(WHITE, &invoice.service_date);
-                        ui.colored_label(WHITE, &invoice.due_date);
-                        ui.colored_label(WHITE, &invoice.partner.partner_name);
-                        ui.colored_label(WHITE, &invoice.company.company_name);
-                        ui.colored_label(WHITE, &invoice.invoice_currency);
-                        for service in invoice.services {
-                            let amount = service.service_price;
-                            ui.colored_label(WHITE, format!("{}", amount));
+                    for invoice in &self.json_data {
+                        ui.horizontal(|ui| ui.label(invoice.invoice.invoice_number.to_string()));
+                        ui.label(invoice.invoice.invoice_date.to_string());
+                        ui.label(invoice.invoice.service_date.to_string());
+                        ui.label(invoice.invoice.due_date.to_string());
+                        ui.label(invoice.invoice.partner.partner_name.to_string());
+                        ui.label(invoice.invoice.company.company_name.to_string());
+                        ui.label(invoice.invoice.status.to_string());
+                        for service in &invoice.invoice.services {
+                            //Calculate the total price of the invoice
+                            let mut total_price = 0.0;
+                            total_price += service.service_price + service.service_tax;
+                            ui.label(total_price.to_string());
                         }
-                        ui.colored_label(WHITE, invoice.invoice_currency);
-                        ui.colored_label(WHITE, "Actions");
+                        ui.label(invoice.invoice.invoice_currency.to_string());
+                        ui.horizontal(|ui| {
+                            //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
+                            //View will open the invoice in a pdf viewer
+                            //Delete will delete the invoice
+                            ui.button("View");
+                            ui.button("Edit");
+                            ui.button("Delete");
+                        });
                         ui.end_row();
                     }
-                    //ui.add_space(10.0);
-                    ui.colored_label(WHITE, format!("{:?}", self.invoice_paths));
-                    ui.colored_label(WHITE, format!("{:?}", self.json_data));
                 });
             });
             //Loading animation spinner very useful.
