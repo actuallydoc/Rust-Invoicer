@@ -1,15 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
+use crate::invoicer::Invoice;
 use eframe;
 use eframe::egui;
-use egui::style::Widgets;
-use egui::{
-    lerp, vec2, widgets, Align, Color32, Layout, Pos2, Response, Sense, Shape, Stroke, TextBuffer,
-    Ui,
-};
-use egui::{RichText, Widget};
-use std::fs;
-use std::ops::RangeInclusive;
+use egui::RichText;
+use egui::{widgets, Color32};
+use std::env;
+use std::fmt::Debug;
+use std::fs::{self, DirEntry};
+
 use std::path::PathBuf;
 //Create a gui struct
 
@@ -21,67 +19,69 @@ const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
 const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
 const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
 
+#[derive(Debug, Default)]
 struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
-    invoice_number: String,
+    invoice_paths: Vec<DirEntry>,
+    json_data: Vec<Invoice>,
 }
-impl GuiApp {
+
+trait Data {
+    fn get_invoices(&mut self) -> Vec<DirEntry>;
+    fn parse_jsons(&mut self) -> Vec<Invoice>;
+    fn new() -> Self;
+}
+
+impl Data for GuiApp {
     fn new() -> Self {
-        //Init all the values that the gui will hold. probably the invoice data , statuses and other important data
-        Self {
-            allowed_to_close: false,
-            show_confirmation_dialog: false,
-            invoice_number: String::new(),
+        let mut this = Self {
+            ..Default::default()
+        }; // or Self::default()
+        this.invoice_paths = this.get_invoices();
+        this.json_data = this.parse_jsons();
+        this
+    }
+
+    fn get_invoices(&mut self) -> Vec<DirEntry> {
+        let mut path = env::current_dir().unwrap();
+        let invoice_folder = PathBuf::from("invoices");
+        path.push(&invoice_folder);
+        println!("Path: {:?}", path);
+        print!("{}", invoice_folder.display());
+
+        let folders: Vec<DirEntry> = fs::read_dir(path)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_type().unwrap().is_dir())
+            .collect();
+        //println!("Data sent: {:?}", folders);
+        folders
+    }
+    #[allow(unused_mut)]
+    fn parse_jsons(&mut self) -> Vec<Invoice> {
+        let paths = self.get_invoices();
+        //Make a vector of invoices
+        let mut json_data: Vec<Invoice> = Vec::new();
+        for path in paths {
+            let mut _path = path.path();
+            _path.push("output.json");
+            println!("Path: {:?}", _path);
+
+            let readen = fs::read_to_string(_path).expect("Unable to read file");
+            println!("Readen: {:?}", readen);
+            // let data = fs::read_to_string(cwd).expect("Unable to read file");
+            // let parsed: Invoice =
+            //     serde_json::from_str(&data).expect("JSON does not have correct format.");
+
+            // println!("Parsed data: {:?}", parsed);
+            // json_data.push(parsed);
         }
+        println!("Parsed json data: {:?}", json_data);
+        json_data
+        //Vec::new()
     }
 }
-// #[derive(Default)]
-// struct CustomWidget {
-//     size: Option<f32>,
-//     color: Option<Color32>,
-// }
-
-// impl CustomWidget {
-//     pub fn new() -> Self {
-//         Self::default()
-//     }
-//     pub fn color(mut self, color: impl Into<Color32>) -> Self {
-//         self.color = Some(color.into());
-//         self
-//     }
-// }
-//Custom
-//impl Widget for CustomWidget {
-// fn ui(self, ui: &mut Ui) -> Response {
-//     let size = self
-//         .size
-//         .unwrap_or_else(|| ui.style().spacing.interact_size.y);
-//     let color = self
-//         .color
-//         .unwrap_or_else(|| ui.visuals().strong_text_color());
-//     let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-
-//     if ui.is_rect_visible(rect) {
-//         ui.ctx().request_repaint();
-
-//         let radius = (rect.height() / 1.0) - 2.0;
-//         let n_points = 20;
-//         let start_angle = ui.input().time * std::f64::consts::TAU;
-//         let end_angle = start_angle + 240f64.to_radians() * ui.input().time.sin();
-//         let points: Vec<Pos2> = (0..n_points)
-//             .map(|i| {
-//                 let angle = lerp(start_angle..=end_angle, i as f64 / n_points as f64);
-//                 let (sin, cos) = angle.sin_cos();
-//                 rect.center() + radius * vec2(cos as f32, sin as f32)
-//             })
-//             .collect();
-//         ui.painter()
-//             .add(Shape::line(points, Stroke::new(3.0, color)));
-//     }
-
-//     response
-// }
 
 impl eframe::App for GuiApp {
     fn on_close_event(&mut self) -> bool {
@@ -98,63 +98,49 @@ impl eframe::App for GuiApp {
             egui::ScrollArea::new([false, false]).show(ui, |ui| {
                 ui.label("Project repo:");
                 ui.add(widgets::Hyperlink::new("https://github.com/actuallydoc"));
-
                 ui.add_space(PADDING);
                 ui.colored_label(
                     CYAN,
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
                 ui.add_space(10.0);
-                ui.horizontal(|ui| {
-                    ui.colored_label(WHITE, "Invoice Number");
-                    ui.add_space(10.0);
-
+                egui::Grid::new("invoice_grid").show(ui, |ui| {
+                    //fetch the invoices and display them
+                    ui.horizontal(|ui| ui.colored_label(WHITE, "Invoice number"));
                     ui.colored_label(WHITE, "Invoice Date");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Service Date");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Due Date");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Partner");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Provider");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Status");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Amount");
-                    ui.add_space(10.0);
                     ui.colored_label(WHITE, "Currency");
-                });
-                ui.add(widgets::Separator::default());
-                ui.add_space(PADDING);
+                    ui.colored_label(WHITE, "Actions");
+                    ui.end_row();
 
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label("world!");
-                        ui.label("Hello");
-                    });
-                    ui.colored_label(WHITE, "21");
-                    ui.add_space(PADDING);
-                    ui.colored_label(WHITE, "08.2.2022");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "08.2.2022");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "Due Date");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "Partner");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "Provider");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "Status");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "Amount");
-                    ui.add_space(10.0);
-                    ui.colored_label(WHITE, "Currency");
-
-                    //Loading animation spinner very useful.
-                    //ui.add(widgets::Spinner::new());
+                    for invoice in self.json_data.clone() {
+                        ui.colored_label(WHITE, format!("{}", &invoice.invoice_number));
+                        ui.colored_label(WHITE, &invoice.invoice_date);
+                        ui.colored_label(WHITE, &invoice.service_date);
+                        ui.colored_label(WHITE, &invoice.due_date);
+                        ui.colored_label(WHITE, &invoice.partner.partner_name);
+                        ui.colored_label(WHITE, &invoice.company.company_name);
+                        ui.colored_label(WHITE, &invoice.invoice_currency);
+                        for service in invoice.services {
+                            let amount = service.service_price;
+                            ui.colored_label(WHITE, format!("{}", amount));
+                        }
+                        ui.colored_label(WHITE, invoice.invoice_currency);
+                        ui.colored_label(WHITE, "Actions");
+                        ui.end_row();
+                    }
+                    //ui.add_space(10.0);
+                    ui.colored_label(WHITE, format!("{:?}", self.invoice_paths));
+                    ui.colored_label(WHITE, format!("{:?}", self.json_data));
                 });
-            })
+            });
+            //Loading animation spinner very useful.
+            //ui.add(widgets::Spinner::new());
         });
 
         if self.show_confirmation_dialog {
@@ -179,32 +165,15 @@ impl eframe::App for GuiApp {
 }
 
 pub fn entry() {
-    let mut options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(320.0, 240.0)),
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(900.0, 700.0)),
         ..Default::default()
     };
+    let app = GuiApp::new();
 
-    options.initial_window_size = Some(egui::vec2(900.0, 700.0));
     eframe::run_native(
         "Invoice GUI",
         options.clone(),
-        Box::new(|_cc| Box::new(GuiApp::new())),
+        Box::new(|_cc| Box::new(app)),
     );
 }
-
-// fn scan_thread(tx: Sender<Vec<DirEntry>>) {
-//     println!("Thread started");
-//     thread::spawn(move || {
-//         let mut path = env::current_dir().unwrap();
-//         let invoice_folder = PathBuf::from("invoices");
-//         path.push(invoice_folder);
-
-//         let folders: Vec<DirEntry> = fs::read_dir(path)
-//             .unwrap()
-//             .filter_map(|entry| entry.ok())
-//             .filter(|entry| entry.file_type().unwrap().is_dir())
-//             .collect();
-//         println!("Data sent: {:?}", folders);
-//         tx.send(folders).unwrap();
-//     });
-// }

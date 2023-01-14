@@ -2,7 +2,7 @@
   "invoice": {
     "invoiceCurrency": "€",
     "invoiceTax": 22.0,
-    "invoiceNumber": 150,
+    "invoiceNumber": 12,
     "invoiceReference": "SI",
     "createdBy": "Maj Knez",
     "invoiceLocation": "Maribor",
