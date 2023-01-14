@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use image::ImageFormat;
 use pdfium_render::prelude::*;
 use pdfium_render::{prelude::PdfiumError, render_config::PdfRenderConfig};
@@ -32,7 +30,7 @@ pub fn export_pdf_to_jpegs(
 
     // ... then render each page to a bitmap image, saving each image to a JPEG file.
 
-    for (index, page) in document.pages().iter().enumerate() {
+    for (_, page) in document.pages().iter().enumerate() {
         page.render_with_config(&render_config)?
             .as_image() // Renders this page to an image::DynamicImage...
             .as_rgba8() // ... then converts it to an image::Image...

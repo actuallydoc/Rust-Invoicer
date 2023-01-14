@@ -2,16 +2,13 @@
 use crate::invoicer::Racun;
 use eframe;
 use eframe::egui;
-use egui::RichText;
 use egui::{widgets, Color32};
+use egui::{RichText, Vec2};
 use fs::File;
 use std::env;
-use std::fmt::{format, Debug};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
-//Create a gui struct
-
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
@@ -20,18 +17,27 @@ const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
 const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
 const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
+    show_image: bool,
+    close_image: bool,
     invoice_paths: Vec<DirEntry>,
     json_data: Vec<Racun>,
+    texture: Option<egui::TextureHandle>,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
     fn parse_jsons(&mut self);
     fn new() -> Self;
+    fn image_window(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        image_jpg_path: String,
+    );
 }
 
 impl Data for GuiApp {
@@ -39,6 +45,7 @@ impl Data for GuiApp {
         let mut this = Self {
             ..Default::default()
         }; // or Self::default()
+
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
         // this.json_data = this.parse_jsons();
@@ -86,6 +93,35 @@ impl Data for GuiApp {
         self.json_data = json_data;
         println!("Json data: {:?}", self.json_data)
         // Open the json file
+    }
+
+    fn image_window(
+        &mut self,
+        ctx: &egui::Context,
+        frame: &mut eframe::Frame,
+        invoice_image_path: String,
+    ) {
+        print!("Image window");
+        egui::Window::new("PDF Viewer")
+            .collapsible(true)
+            .default_size(Vec2::new(1200.0, 900.0))
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
+                        // Load the texture only once.
+                        ui.ctx().load_texture(
+                            invoice_image_path,
+                            egui::ColorImage::default(),
+                            Default::default(),
+                        )
+                    });
+                    ui.image(texture, [500.0, 500.0]);
+                });
+                if ui.add(widgets::Button::new("Close")).clicked() {
+                    self.show_image = false;
+                    println!("Close button clicked");
+                }
+            });
     }
 }
 
@@ -147,11 +183,21 @@ impl eframe::App for GuiApp {
                                 //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
                                 //View will open the invoice in a pdf viewer
                                 //Delete will delete the invoice
-                                if ui.button("View").clicked() {};
+                                if ui.button("View").clicked() {
+                                    self.show_image = true;
+                                };
                                 if ui.button("Edit").clicked() {};
                                 if ui.button("Delete").clicked() {};
                             });
                             ui.end_row();
+                        }
+                        if self.show_image {
+                            self.image_window(
+                                ctx,
+                                frame,
+                                "C://Users//Maj//Desktop//rust_pdf//invoices//11//račun 11.jpg"
+                                    .to_string(),
+                            );
                         }
                     }
                 });

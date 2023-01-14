@@ -15,5 +15,6 @@ eframe = "0.20.1"
 json = "0.12.4"
 pdfium-render = "0.7.27"
 image = "0.24.5"
+egui_extras = "0.20.0"
 
 

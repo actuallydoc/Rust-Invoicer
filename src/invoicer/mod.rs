@@ -3,7 +3,6 @@ use printpdf::*;
 use serde::{Deserialize, Serialize};
 use std::{
     env,
-    error::Error,
     fs::{self, read_to_string, File},
     io::{BufWriter, Write},
     path::PathBuf,
