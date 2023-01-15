@@ -22,3 +22,11 @@
 - [] Rendering PDF's in a new window to preview them
 - [] Deleting PDF's
 - [] Converting everything fully to database
+
+# Showcase
+
+![alt text](https://i.imgur.com/zxizbv3.png "Logo Title Text 1")
+
+# Invoice template
+
+![alt text](https://i.imgur.com/oSGMmMe.png "Logo Title Text 1")
