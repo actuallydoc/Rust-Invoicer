@@ -2,13 +2,14 @@
 use crate::invoicer::Racun;
 use eframe;
 use eframe::egui;
-use egui::{widgets, Color32};
+use egui::{widgets, Color32, Image, TextureHandle, TextureOptions, Ui};
 use egui::{RichText, Vec2};
 use fs::File;
 use std::env;
+use std::fmt::{Display, Formatter};
 use std::fs::{self, DirEntry};
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
@@ -22,22 +23,20 @@ struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
     show_image: bool,
-    close_image: bool,
     invoice_paths: Vec<DirEntry>,
     json_data: Vec<Racun>,
     texture: Option<egui::TextureHandle>,
+    color_image: Option<egui::ColorImage>,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
     fn parse_jsons(&mut self);
     fn new() -> Self;
-    fn image_window(
+    fn load_image_from_path(
         &mut self,
-        ctx: &egui::Context,
-        frame: &mut eframe::Frame,
-        image_jpg_path: String,
-    );
+        path: &std::path::Path,
+    ) -> Result<egui::ColorImage, image::ImageError>;
 }
 
 impl Data for GuiApp {
@@ -95,33 +94,19 @@ impl Data for GuiApp {
         // Open the json file
     }
 
-    fn image_window(
+    fn load_image_from_path(
         &mut self,
-        ctx: &egui::Context,
-        frame: &mut eframe::Frame,
-        invoice_image_path: String,
-    ) {
-        print!("Image window");
-        egui::Window::new("PDF Viewer")
-            .collapsible(true)
-            .default_size(Vec2::new(1200.0, 900.0))
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    let texture: &egui::TextureHandle = self.texture.get_or_insert_with(|| {
-                        // Load the texture only once.
-                        ui.ctx().load_texture(
-                            invoice_image_path,
-                            egui::ColorImage::default(),
-                            Default::default(),
-                        )
-                    });
-                    ui.image(texture, [500.0, 500.0]);
-                });
-                if ui.add(widgets::Button::new("Close")).clicked() {
-                    self.show_image = false;
-                    println!("Close button clicked");
-                }
-            });
+        path: &std::path::Path,
+    ) -> Result<egui::ColorImage, image::ImageError> {
+        let path = Path::new(path);
+        let image = image::io::Reader::open(path)?.decode()?;
+        let size = [image.width() as _, image.height() as _];
+        let image_buffer = image.to_rgba8();
+        let pixels = image_buffer.as_flat_samples();
+        Ok(egui::ColorImage::from_rgba_unmultiplied(
+            size,
+            pixels.as_slice(),
+        ))
     }
 }
 
@@ -192,12 +177,18 @@ impl eframe::App for GuiApp {
                             ui.end_row();
                         }
                         if self.show_image {
-                            self.image_window(
-                                ctx,
-                                frame,
-                                "C://Users//Maj//Desktop//rust_pdf//invoices//11//račun 11.jpg"
-                                    .to_string(),
-                            );
+                            egui::Window::new("PDF WINDOW")
+                                .collapsible(false)
+                                .resizable(false)
+                                .show(ctx, |ui| {
+                                    ui.horizontal(|ui| {
+                                        if ui.button("Close").clicked() {
+                                            self.show_image = false;
+                                        }
+                                    });
+                                });
+                        } else {
+                            self.show_image = false;
                         }
                     }
                 });
@@ -207,8 +198,9 @@ impl eframe::App for GuiApp {
         if self.show_confirmation_dialog {
             // Show confirmation dialog:
             egui::Window::new("Do you want to quit?")
-                .collapsible(false)
-                .resizable(false)
+                .collapsible(true)
+                .resizable(true)
+                .default_size(Vec2::new(600.0, 500.0))
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Cancel").clicked() {
@@ -237,4 +229,12 @@ pub fn entry() {
         options.clone(),
         Box::new(|_cc| Box::new(app)),
     );
+}
+fn show_image_window(ctx: &egui::Context, texture: &egui::TextureHandle) {
+    let window = eframe::egui::Window::new("Image");
+    window.collapsible(false).resizable(false).show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            ui.add(egui::Image::new(texture, [1000.0, 800.0]));
+        });
+    });
 }
