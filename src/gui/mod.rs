@@ -27,6 +27,7 @@ struct GuiApp {
     json_data: Vec<Racun>,
     texture: Option<egui::TextureHandle>,
     color_image: Option<egui::ColorImage>,
+    delete_invoice: bool,
 }
 
 trait Data {
@@ -37,6 +38,7 @@ trait Data {
         &mut self,
         path: &std::path::Path,
     ) -> Result<egui::ColorImage, image::ImageError>;
+    fn delete_invoice(&mut self, racun: &Racun);
 }
 
 impl Data for GuiApp {
@@ -49,6 +51,9 @@ impl Data for GuiApp {
         this.parse_jsons();
         // this.json_data = this.parse_jsons();
         this
+    }
+    fn delete_invoice(&mut self, racun: &Racun) {
+        println!("Deleting invoice: {:?}", racun);
     }
 
     fn get_invoices(&mut self) -> Vec<DirEntry> {
@@ -109,7 +114,6 @@ impl Data for GuiApp {
         ))
     }
 }
-
 impl eframe::App for GuiApp {
     fn on_close_event(&mut self) -> bool {
         self.show_confirmation_dialog = true;
@@ -118,7 +122,6 @@ impl eframe::App for GuiApp {
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         // Save settings here
     }
-
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -147,7 +150,7 @@ impl eframe::App for GuiApp {
                         ui.colored_label(WHITE, "Currency");
                         ui.colored_label(WHITE, "Actions");
                         ui.end_row();
-                        for invoice in &self.json_data {
+                        for invoice in self.json_data.iter_mut() {
                             ui.horizontal(|ui| {
                                 ui.label(invoice.invoice.invoice_number.to_string())
                             });
@@ -164,6 +167,7 @@ impl eframe::App for GuiApp {
                                 ui.label(total_price.to_string());
                             }
                             ui.label(invoice.invoice.invoice_currency.to_string());
+
                             ui.horizontal(|ui| {
                                 //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
                                 //View will open the invoice in a pdf viewer
@@ -171,11 +175,19 @@ impl eframe::App for GuiApp {
                                 if ui.button("View").clicked() {
                                     self.show_image = true;
                                 };
-                                if ui.button("Edit").clicked() {};
-                                if ui.button("Delete").clicked() {};
+                                if ui.button("Edit").clicked() {
+                                    //Open the invoice in a new window with its data and allow the user to edit it
+                                    //TODO: Implement this
+                                };
+                                if ui.button("Delete").clicked() {
+                                    self.delete_invoice = true;
+                                    //Delete the invoice from the gui and from the json file
+                                };
                             });
+
                             ui.end_row();
                         }
+
                         if self.show_image {
                             egui::Window::new("PDF WINDOW")
                                 .collapsible(false)

@@ -2,6 +2,8 @@
 
 #### The making of this app is inspired by my will to learn rust and other languages.
 
+n
+
 ### Written 100% in rust with [pdfium](https://github.com/bblanchon/pdfium-binaries/releases) library bindings
 
 # Use
