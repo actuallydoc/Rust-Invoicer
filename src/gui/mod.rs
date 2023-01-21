@@ -2,14 +2,15 @@
 use crate::invoicer::Racun;
 use eframe;
 use eframe::egui;
-use egui::{widgets, Color32, Image, TextureHandle, TextureOptions, Ui};
+use egui::{widgets, Color32, ColorImage};
 use egui::{RichText, Vec2};
+use egui_extras::RetainedImage;
+
 use fs::File;
 use std::env;
-use std::fmt::{Display, Formatter};
 use std::fs::{self, DirEntry};
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
@@ -25,19 +26,17 @@ struct GuiApp {
     show_image: bool,
     invoice_paths: Vec<DirEntry>,
     json_data: Vec<Racun>,
-    texture: Option<egui::TextureHandle>,
-    color_image: Option<egui::ColorImage>,
     delete_invoice: bool,
+    clicked_pdf_path: PathBuf,
+    image: Option<RetainedImage>,
+    color_image: Option<ColorImage>,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
     fn parse_jsons(&mut self);
     fn new() -> Self;
-    fn load_image_from_path(
-        &mut self,
-        path: &std::path::Path,
-    ) -> Result<egui::ColorImage, image::ImageError>;
+
     fn delete_invoice(&mut self, racun: &Racun);
 }
 
@@ -98,21 +97,6 @@ impl Data for GuiApp {
         println!("Json data: {:?}", self.json_data)
         // Open the json file
     }
-
-    fn load_image_from_path(
-        &mut self,
-        path: &std::path::Path,
-    ) -> Result<egui::ColorImage, image::ImageError> {
-        let path = Path::new(path);
-        let image = image::io::Reader::open(path)?.decode()?;
-        let size = [image.width() as _, image.height() as _];
-        let image_buffer = image.to_rgba8();
-        let pixels = image_buffer.as_flat_samples();
-        Ok(egui::ColorImage::from_rgba_unmultiplied(
-            size,
-            pixels.as_slice(),
-        ))
-    }
 }
 impl eframe::App for GuiApp {
     fn on_close_event(&mut self) -> bool {
@@ -133,6 +117,7 @@ impl eframe::App for GuiApp {
                     CYAN,
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
+                ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
                 ui.add_space(10.0);
                 egui::Grid::new("invoice_grid").show(ui, |ui| {
                     if self.json_data.is_empty() {
@@ -172,7 +157,24 @@ impl eframe::App for GuiApp {
                                 //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
                                 //View will open the invoice in a pdf viewer
                                 //Delete will delete the invoice
+
                                 if ui.button("View").clicked() {
+                                    for invoice_path in &self.invoice_paths {
+                                        if invoice_path
+                                            .path()
+                                            .ends_with(&invoice.invoice.invoice_number.to_string())
+                                        {
+                                            self.clicked_pdf_path = invoice_path.path();
+                                            //RetainedImage::from_image_bytes(&response.url, &response.bytes).ok();
+                                            self.color_image =
+                                                Some(egui::Texture::from_image_bytes(
+                                                    &self.clicked_pdf_path,
+                                                    &std::fs::read(&self.clicked_pdf_path).unwrap(),
+                                                ));
+                                        }
+                                    }
+                                    //Check which invoice is clicked and open the pdf in a new window
+
                                     self.show_image = true;
                                 };
                                 if ui.button("Edit").clicked() {
@@ -194,6 +196,8 @@ impl eframe::App for GuiApp {
                                 .resizable(false)
                                 .show(ctx, |ui| {
                                     ui.horizontal(|ui| {
+                                        //Render the PDF in memory and to texture to display it in the gui
+
                                         if ui.button("Close").clicked() {
                                             self.show_image = false;
                                         }
