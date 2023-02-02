@@ -8,6 +8,8 @@
 
 ### This app is made for making,viewing,deleting custom invoice's through the gui.
 
+### For now its pretty slow especially on rendering the image from path even though the jpg's are like 200kb
+
 #### Features
 
 - [✔] GUI
@@ -15,12 +17,13 @@
 - [✔] Fixed invoice template with table support
 - [✔] Invoice Rendering through the GUI
 - [❌] Invoice generation through GUI(Only fake for now)
+- [✔] Deleting PDF's
 - [✔] Only Slovenian language support(FOR NOW)
 - [✔] Customizable data in the invoice (company , partner, services etc..)
 
 #### Upcoming features
 
-- [❌] Deleting PDF's
+- [❌] Multithreading , Async etc(The app is pretty slow rn).
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
 - [❌] Discord RPC just for curiosity of learning hehe
