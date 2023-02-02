@@ -3,12 +3,27 @@ use printpdf::*;
 use serde::{Deserialize, Serialize};
 use std::{
     env,
+    fmt::Display,
     fs::{self, read_to_string, File},
     io::{BufWriter, Write},
     path::PathBuf,
 };
 
 use crate::render::export_pdf_to_jpegs;
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+pub enum PaymentStatus {
+    PAID,
+    #[default]
+    UNPAID,
+}
+impl Display for PaymentStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PaymentStatus::PAID => write!(f, "PAID"),
+            PaymentStatus::UNPAID => write!(f, "UNPAID"),
+        }
+    }
+}
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "camelCase")]
@@ -81,7 +96,7 @@ pub struct Invoice {
     pub invoice_reference: String,
     pub services: Vec<Service>,
     pub created_by: String,
-    pub status: String,
+    pub status: PaymentStatus,
 }
 
 impl Racun {

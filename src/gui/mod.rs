@@ -369,7 +369,7 @@ fn make_fake_invoice()-> Racun {
                 service_tax: 22.0,
 
             }],
-            status: "Paid".to_string(),
+            status: crate::invoicer::PaymentStatus::UNPAID,
             
         },
         config: InvoiceStructure {
