@@ -20,8 +20,10 @@
 
 #### Upcoming features
 
-- [] Deleting PDF's
-- [] Converting everything fully to database
+- [❌] Deleting PDF's
+- [❌] Converting everything fully to database
+- [❌] PDF Sign feature
+- [❌] Discord RPC just for curiosity of learning hehe
 
 # Showcase
 

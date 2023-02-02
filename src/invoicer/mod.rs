@@ -578,7 +578,7 @@ pub fn render_invoice_header(
         &standard_font,
     );
 }
-pub fn init(racun: &Racun) {
+pub fn init(racun: Racun) {
     let (doc, page1, layer1) = PdfDocument::new(
         racun.invoice.invoice_number.to_string(),
         Mm(210.0), //Page size A4

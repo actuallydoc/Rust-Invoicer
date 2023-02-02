@@ -1,2 +1,4 @@
 /target
 /invoices
+/.env
+/.vscode

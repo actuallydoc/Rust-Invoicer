@@ -7,16 +7,15 @@ use egui::{RichText, Vec2};
 use rand::Rng;
 use fs::File;
 use std::env;
-use std::fmt::format;
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
+use crate::rpc::{DiscordRPC, RPC};
+//Consts
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 
-
-#[derive(Default)]
 struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
@@ -26,23 +25,32 @@ struct GuiApp {
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
     texture: Option<TextureHandle>,
-    refresh: bool,
+    refresh: bool, 
+    presence: DiscordRPC,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
     fn parse_jsons(&mut self);
     fn new() -> Self;
-
     fn delete_invoice(&mut self, racun: &Racun);
 }
 
 impl Data for GuiApp {
     fn new() -> Self {
         let mut this = Self {
-            ..Default::default()
-        }; // or Self::default()
-
+            allowed_to_close: false,
+            clicked_pdf_path: PathBuf::new(),
+            show_confirmation_dialog: false,
+            show_image: false,
+            invoice_paths: Vec::new(),
+            json_data: Vec::new(),
+            delete_invoice: false,
+            texture: None,
+            refresh: false,
+            presence: DiscordRPC::new(),
+        }; 
+        this.presence = DiscordRPC::new();
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
         // this.json_data = this.parse_jsons();
@@ -91,7 +99,7 @@ impl Data for GuiApp {
             };
         }
         self.json_data = json_data;
-        println!("Json data: {:?}", self.json_data)
+        // println!("Json data: {:?}", self.json_data)
         // Open the json file
     }
 }
@@ -120,77 +128,14 @@ impl eframe::App for GuiApp {
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
                 if ui.button("Generate fake invoice").clicked() {
-                    
-                    let mut rng = rand::thread_rng();
-                    let racun1 = Racun {
-                        invoice: Invoice {
-                            invoice_number: rng.gen_range(1..200),
-                            invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-                            due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-                            service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-                            invoice_currency: "EUR".to_string(),
-                            company: Company {
-                                company_address: "Company address".to_string(),
-                                company_name: "Company name".to_string(),
-                                company_bankname: "Company bank name".to_string(),
-                                company_business_registered_at: "Company business registered at".to_string(),
-                                company_currency: "EUR".to_string(),
-                                company_iban: "Company iban".to_string(),
-                                company_phone: "Company phone".to_string(),
-                                company_postal_code: "Company postal code".to_string(),
-                                company_registration_number: "Company registration number".to_string(),
-                                company_vat_rate: 22.0,
-                                company_signature: "Company signature".to_string(),
-                                company_swift: "Company swift".to_string(),
-                                company_vat_id: "Company vat id".to_string(),
-                            },
-                            invoice_location: "Slovenia".to_string(),
-                            partner: Partner {
-                                partner_address: "Partner address".to_string(),
-                                partner_name: "Partner name".to_string(),
-                                partner_postal_code: "Partner postal code".to_string(),
-                                partner_vat_id: "Partner vat id".to_string(),
-
-                            },
-                            invoice_tax: 22.0,
-                            invoice_reference: "123456789".to_string(),
-                            created_by: "Invoice generator".to_string(),
-                            services: vec![Service {
-                                service_currency: "EUR".to_string(),
-                                service_name: "Service name".to_string(),
-                                service_price:rng.gen_range(1..1000) as f64,
-                                service_quantity: rng.gen_range(1..5) as i32,
-                                service_tax: 22.0,
-   
-                            }, Service {
-                                service_currency: "EUR".to_string(),
-                                service_name: "Service name".to_string(),
-                                service_price: rng.gen_range(1..1000) as f64,
-                                service_quantity: rng.gen_range(1..5) as i32,
-                                service_tax: 22.0,
-   
-                            },Service {
-                                service_currency: "EUR".to_string(),
-                                service_name: "Service name".to_string(),
-                                service_price: rng.gen_range(1..1000) as f64,
-                                service_quantity: rng.gen_range(1..5) as i32,
-                                service_tax: 22.0,
-   
-                            }],
-                            status: "Paid".to_string(),
-                            
-                        },
-                        config: InvoiceStructure {
-                            font_sizes: FontSizes {
-                                small:9.0,
-                                medium:14.0,
-                                large:16.0,
-                            }
-                        }
-                    };
-                    init(&racun1);
+                    let racun = make_fake_invoice();
+                    init(racun);
                     self.refresh = true;
                 }
+                ui.add_space(PADDING);
+                
+
+                ui.add_space(PADDING);
                 //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
                 ui.add_space(10.0);
                 egui::Grid::new("invoice_grid").show(ui, |ui| {
@@ -363,6 +308,82 @@ self.show_image = false;
     }
 }
 
+
+
+
+//Only for testing purposes
+fn make_fake_invoice()-> Racun {
+    let mut rng = rand::thread_rng();
+    let racun1 = Racun {
+        invoice: Invoice {
+            invoice_number: rng.gen_range(1..200),
+            invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+            due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+            service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+            invoice_currency: "EUR".to_string(),
+            company: Company {
+                company_address: "Company address".to_string(),
+                company_name: "Company name".to_string(),
+                company_bankname: "Company bank name".to_string(),
+                company_business_registered_at: "Company business registered at".to_string(),
+                company_currency: "EUR".to_string(),
+                company_iban: "Company iban".to_string(),
+                company_phone: "Company phone".to_string(),
+                company_postal_code: "Company postal code".to_string(),
+                company_registration_number: "Company registration number".to_string(),
+                company_vat_rate: 22.0,
+                company_signature: "Company signature".to_string(),
+                company_swift: "Company swift".to_string(),
+                company_vat_id: "Company vat id".to_string(),
+            },
+            invoice_location: "Slovenia".to_string(),
+            partner: Partner {
+                partner_address: "Partner address".to_string(),
+                partner_name: "Partner name".to_string(),
+                partner_postal_code: "Partner postal code".to_string(),
+                partner_vat_id: "Partner vat id".to_string(),
+
+            },
+            invoice_tax: 22.0,
+            invoice_reference: "123456789".to_string(),
+            created_by: "Invoice generator".to_string(),
+            services: vec![Service {
+                service_currency: "EUR".to_string(),
+                service_name: "Service name".to_string(),
+                service_price:rng.gen_range(1..1000) as f64,
+                service_quantity: rng.gen_range(1..5) as i32,
+                service_tax: 22.0,
+
+            }, Service {
+                service_currency: "EUR".to_string(),
+                service_name: "Service name".to_string(),
+                service_price: rng.gen_range(1..1000) as f64,
+                service_quantity: rng.gen_range(1..5) as i32,
+                service_tax: 22.0,
+
+            },Service {
+                service_currency: "EUR".to_string(),
+                service_name: "Service name".to_string(),
+                service_price: rng.gen_range(1..1000) as f64,
+                service_quantity: rng.gen_range(1..5) as i32,
+                service_tax: 22.0,
+
+            }],
+            status: "Paid".to_string(),
+            
+        },
+        config: InvoiceStructure {
+            font_sizes: FontSizes {
+                small:9.0,
+                medium:14.0,
+                large:16.0,
+            }
+        }
+    };
+    racun1
+}
+
+
 pub fn entry() {
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(900.0, 700.0)),
@@ -376,4 +397,3 @@ pub fn entry() {
         Box::new(|_cc| Box::new(app)),
     );
 }
-
