@@ -6,7 +6,7 @@ use egui::{widgets, Color32, TextureHandle};
 use egui::{RichText, Vec2};
 use rand::Rng;
 use fs::File;
-use std::env;
+use std::{env};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
@@ -16,6 +16,8 @@ const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 
+
+
 struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
@@ -24,16 +26,16 @@ struct GuiApp {
     json_data: Vec<Racun>,
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
+    delete_invoice_path: PathBuf,
     texture: Option<TextureHandle>,
     refresh: bool, 
-    presence: DiscordRPC,
+   
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
     fn parse_jsons(&mut self);
     fn new() -> Self;
-    fn delete_invoice(&mut self, racun: &Racun);
 }
 
 impl Data for GuiApp {
@@ -46,27 +48,24 @@ impl Data for GuiApp {
             invoice_paths: Vec::new(),
             json_data: Vec::new(),
             delete_invoice: false,
+            delete_invoice_path: PathBuf::new(),
             texture: None,
             refresh: false,
-            presence: DiscordRPC::new(),
-        }; 
-        this.presence = DiscordRPC::new();
+
+        
+            
+        };
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
-        // this.json_data = this.parse_jsons();
         this
     }
-    fn delete_invoice(&mut self, racun: &Racun) {
-        println!("Deleting invoice: {:?}", racun);
-    }
+    
 
     fn get_invoices(&mut self) -> Vec<DirEntry> {
         let mut path = env::current_dir().unwrap();
         let invoice_folder = PathBuf::from("invoices");
         path.push(&invoice_folder);
-        println!("Path: {:?}", path);
-        print!("{}", invoice_folder.display());
-
+    
         let folders: Vec<DirEntry> = fs::read_dir(path)
             .unwrap()
             .filter_map(|entry| entry.ok())
@@ -88,7 +87,7 @@ impl Data for GuiApp {
             let mut contents = String::new();
             match file_content.read_to_string(&mut contents) {
                 Ok(_) => {
-                    println!("File contents: {}", contents);
+                    //println!("File contents: {}", contents);
                     let invoice: Racun = match serde_json::from_str(&contents) {
                         Ok(invoice) => invoice,
                         Err(err) => panic!("Could not deserialize the file, error code: {}", err),
@@ -128,13 +127,16 @@ impl eframe::App for GuiApp {
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
                 if ui.button("Generate fake invoice").clicked() {
+                   
                     let racun = make_fake_invoice();
                     init(racun);
                     self.refresh = true;
+
+                    ctx.request_repaint();
                 }
                 ui.add_space(PADDING);
                 
-
+               
                 ui.add_space(PADDING);
                 //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
                 ui.add_space(10.0);
@@ -181,6 +183,7 @@ impl eframe::App for GuiApp {
                                 //Delete will delete the invoice
 
                                 if ui.button("View").clicked() {
+                                  
                                     for invoice_path in &self.invoice_paths {
                                         if invoice_path
                                             .path()
@@ -189,7 +192,7 @@ impl eframe::App for GuiApp {
                                             self.clicked_pdf_path = invoice_path.path();
                                             //Get the JPG file from the clicked invoice and render it
                                             if let Some(value) = self.clicked_pdf_path.file_name() {
-                                                println!("File name: {}", value.to_string_lossy());
+                                                
                                                 if let Ok(files) =
                                                     fs::read_dir(&self.clicked_pdf_path)
                                                 {
@@ -248,6 +251,23 @@ impl eframe::App for GuiApp {
                                 };
                                 if ui.button("Delete").clicked() {
                                     self.delete_invoice = true;
+                                    if self.delete_invoice {
+                                        for invoice_path in &self.invoice_paths {
+                                            if invoice_path
+                                                .path()
+                                                .ends_with(&invoice.invoice.invoice_number.to_string())
+                                            {
+                                             //Delete the invoice from the json file
+                                                match fs::remove_dir_all(invoice_path.path()) {
+                                                    Ok(_) => self.refresh = true ,
+                                                    Err(_) => (),
+                                            
+                                                }
+                                               
+                                            }
+
+                                        }
+                                    }
                                     //Delete the invoice from the gui and from the json file
                                     //TODO: Implement this
                                 };

@@ -1,13 +1,11 @@
-use crate::invoicer::Racun;
 use gui::entry;
-use invoicer::init;
-
 mod gui;
 mod invoicer;
 mod render;
 mod rpc;
 fn main() {
-    let fresh_racun = Racun::parse_from_file();
+    // let fresh_racun = Racun::parse_from_file();
+
     //Todo sign field and add a base64 for a sign.
     // init(&fresh_racun); This function makes the invoice
     //Gui entry

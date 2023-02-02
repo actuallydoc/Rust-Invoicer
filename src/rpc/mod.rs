@@ -4,7 +4,7 @@ use discord_rpc_client::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Status {
     CONNECTED,
     DISCONNECTED,
@@ -22,7 +22,7 @@ impl ClientId {
         //fs::read_to_string("rpc.json").expect("Something went wrong reading the file");
         let content = fs::read_to_string("rpc.json").unwrap();
         let serialized: ClientId = serde_json::from_str(&content).unwrap();
-
+        //println!("Client id: {}", serialized.client_id);
         Self {
             client_id: serialized.client_id,
         }
