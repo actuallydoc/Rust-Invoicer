@@ -15,17 +15,19 @@ n
 - [✔] GUI
 - [✔] Invoice generator
 - [✔] Fixed invoice template with table support
+- [✔] Invoice Rendering through the GUI
 - [❌] Invoice generation through GUI
-- [✔] Only slovenian language support(FOR NOW)
+- [✔] Only Slovenian language support(FOR NOW)
 - [✔] Customizable data in the invoice (company , partner, services etc..)
 
 #### Upcoming features
 
-- [] Rendering PDF's in a new window to preview them
 - [] Deleting PDF's
 - [] Converting everything fully to database
 
 # Showcase
+
+![alt text](https://i.imgur.com/pwrZ4Xj.png "PDF Viewer")
 
 ![alt text](https://i.imgur.com/zxizbv3.png "Logo Title Text 1")
 

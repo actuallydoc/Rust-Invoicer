@@ -1,23 +1,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::Racun;
+use crate::invoicer::{Racun, init, Invoice, InvoiceStructure, FontSizes, Service, Company, Partner};
 use eframe;
 use eframe::egui;
-use egui::{widgets, Color32, ColorImage};
+use egui::{widgets, Color32, TextureHandle};
 use egui::{RichText, Vec2};
-use egui_extras::RetainedImage;
-
+use rand::Rng;
 use fs::File;
 use std::env;
+use std::fmt::format;
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
-const RED: Color32 = Color32::from_rgb(255, 0, 0);
-const GREEN: Color32 = Color32::from_rgb(0, 255, 0);
-const BLUE: Color32 = Color32::from_rgb(0, 0, 255);
-const YELLOW: Color32 = Color32::from_rgb(255, 255, 0);
+
 
 #[derive(Default)]
 struct GuiApp {
@@ -28,8 +25,8 @@ struct GuiApp {
     json_data: Vec<Racun>,
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
-    image: Option<RetainedImage>,
-    color_image: Option<ColorImage>,
+    texture: Option<TextureHandle>,
+    refresh: bool,
 }
 
 trait Data {
@@ -108,6 +105,11 @@ impl eframe::App for GuiApp {
     }
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.refresh {
+            self.invoice_paths = self.get_invoices();
+            self.parse_jsons();
+            self.refresh = false;
+        }
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::new([false, false]).show(ui, |ui| {
                 ui.label("Project repo:");
@@ -117,11 +119,86 @@ impl eframe::App for GuiApp {
                     CYAN,
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
-                ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
+                if ui.button("Generate fake invoice").clicked() {
+                    
+                    let mut rng = rand::thread_rng();
+                    let racun1 = Racun {
+                        invoice: Invoice {
+                            invoice_number: rng.gen_range(1..200),
+                            invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+                            due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+                            service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+                            invoice_currency: "EUR".to_string(),
+                            company: Company {
+                                company_address: "Company address".to_string(),
+                                company_name: "Company name".to_string(),
+                                company_bankname: "Company bank name".to_string(),
+                                company_business_registered_at: "Company business registered at".to_string(),
+                                company_currency: "EUR".to_string(),
+                                company_iban: "Company iban".to_string(),
+                                company_phone: "Company phone".to_string(),
+                                company_postal_code: "Company postal code".to_string(),
+                                company_registration_number: "Company registration number".to_string(),
+                                company_vat_rate: 22.0,
+                                company_signature: "Company signature".to_string(),
+                                company_swift: "Company swift".to_string(),
+                                company_vat_id: "Company vat id".to_string(),
+                            },
+                            invoice_location: "Slovenia".to_string(),
+                            partner: Partner {
+                                partner_address: "Partner address".to_string(),
+                                partner_name: "Partner name".to_string(),
+                                partner_postal_code: "Partner postal code".to_string(),
+                                partner_vat_id: "Partner vat id".to_string(),
+
+                            },
+                            invoice_tax: 22.0,
+                            invoice_reference: "123456789".to_string(),
+                            created_by: "Invoice generator".to_string(),
+                            services: vec![Service {
+                                service_currency: "EUR".to_string(),
+                                service_name: "Service name".to_string(),
+                                service_price:rng.gen_range(1..1000) as f64,
+                                service_quantity: rng.gen_range(1..5) as i32,
+                                service_tax: 22.0,
+   
+                            }, Service {
+                                service_currency: "EUR".to_string(),
+                                service_name: "Service name".to_string(),
+                                service_price: rng.gen_range(1..1000) as f64,
+                                service_quantity: rng.gen_range(1..5) as i32,
+                                service_tax: 22.0,
+   
+                            },Service {
+                                service_currency: "EUR".to_string(),
+                                service_name: "Service name".to_string(),
+                                service_price: rng.gen_range(1..1000) as f64,
+                                service_quantity: rng.gen_range(1..5) as i32,
+                                service_tax: 22.0,
+   
+                            }],
+                            status: "Paid".to_string(),
+                            
+                        },
+                        config: InvoiceStructure {
+                            font_sizes: FontSizes {
+                                small:9.0,
+                                medium:14.0,
+                                large:16.0,
+                            }
+                        }
+                    };
+                    init(&racun1);
+                    self.refresh = true;
+                }
+                //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
                 ui.add_space(10.0);
                 egui::Grid::new("invoice_grid").show(ui, |ui| {
-                    if self.json_data.is_empty() {
+                    if self.json_data.iter().count() == 0 {
                         ui.add(widgets::Spinner::new());
+                        ui.label("No invoices found");
+                        self.refresh = true;
+                        ctx.request_repaint();
                     } else {
                         //fetch the invoices and display them
                         ui.horizontal(|ui| ui.colored_label(WHITE, "Invoice number"));
@@ -165,12 +242,55 @@ impl eframe::App for GuiApp {
                                             .ends_with(&invoice.invoice.invoice_number.to_string())
                                         {
                                             self.clicked_pdf_path = invoice_path.path();
-                                            //RetainedImage::from_image_bytes(&response.url, &response.bytes).ok();
-                                            self.color_image =
-                                                Some(egui::Texture::from_image_bytes(
-                                                    &self.clicked_pdf_path,
-                                                    &std::fs::read(&self.clicked_pdf_path).unwrap(),
-                                                ));
+                                            //Get the JPG file from the clicked invoice and render it
+                                            if let Some(value) = self.clicked_pdf_path.file_name() {
+                                                println!("File name: {}", value.to_string_lossy());
+                                                if let Ok(files) =
+                                                    fs::read_dir(&self.clicked_pdf_path)
+                                                {
+                                                    for file in files {
+                                                        if let Ok(file) = file {
+                                                            if let Some(extension) =
+                                                                file.path().extension()
+                                                            {
+                                                                if extension == "jpg" {
+                                                                    println!(
+                                                                        "File name: {}",
+                                                                        file.path()
+                                                                            .to_string_lossy()
+                                                                    );
+                                                                    //Get the image from the path and render it
+                                                                    let image = image::io::Reader::open(file.path()).unwrap().decode().unwrap();
+                                                                    let size = [image.width() as _, image.height() as _];
+                                                                    let image_buffer = image.to_rgba8();
+                                                                    let pixels = image_buffer.as_flat_samples();
+                                                                    let color_img = egui::ColorImage::from_rgba_unmultiplied(
+                                                                        size,
+                                                                        pixels.as_slice());
+                                                                        //self.image = Some(RetainedImage::from_color_image("Test image", color_img));
+                                                                        self.texture = None;
+                                                                        self.texture.get_or_insert_with(|| {
+                                                                            // Load the texture only once.
+                                                                            ui.ctx().load_texture(
+                                                                                "image",
+                                                                                color_img,
+                                                                                Default::default()
+                                                                            )
+                                                                        });
+                                                                       
+                                                                
+                                                                    // RetainedImage::from
+                                                                    
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                println!("Could not get the file name");
+                                            }
+
+                                            //Make the self.clicked_pdf_path -> Image on the GUI
                                         }
                                     }
                                     //Check which invoice is clicked and open the pdf in a new window
@@ -184,33 +304,43 @@ impl eframe::App for GuiApp {
                                 if ui.button("Delete").clicked() {
                                     self.delete_invoice = true;
                                     //Delete the invoice from the gui and from the json file
+                                    //TODO: Implement this
                                 };
                             });
 
                             ui.end_row();
                         }
 
-                        if self.show_image {
-                            egui::Window::new("PDF WINDOW")
-                                .collapsible(false)
-                                .resizable(false)
-                                .show(ctx, |ui| {
-                                    ui.horizontal(|ui| {
-                                        //Render the PDF in memory and to texture to display it in the gui
-
-                                        if ui.button("Close").clicked() {
-                                            self.show_image = false;
-                                        }
-                                    });
-                                });
-                        } else {
-                            self.show_image = false;
-                        }
                     }
                 });
             });
         });
-
+        
+        if self.show_image {
+                // println!("Show image is true");
+            if self.texture.is_some() {
+               
+                // println!("Image is not none");
+                if let Some(texture) = &mut self.texture {
+                    egui::Window::new("Image").collapsible(true).resizable(true).default_size(Vec2::new(1000.0, 1000.0)).show(ctx, |ui| {
+                        egui::ScrollArea::new([true, true]).show(ui, |ui| {
+                        ui.add(egui::Image::new(texture.id(), [500.0, 700.0]));
+                        // });
+                        if ui.button("Close").clicked() {
+                            self.show_image = false;
+                        }
+                    });
+                    });
+                
+                }   
+            }  else {
+                // println!("Image is none");
+                self.texture = None;
+            }   
+    
+} else {
+self.show_image = false;
+}
         if self.show_confirmation_dialog {
             // Show confirmation dialog:
             egui::Window::new("Do you want to quit?")
@@ -246,11 +376,4 @@ pub fn entry() {
         Box::new(|_cc| Box::new(app)),
     );
 }
-fn show_image_window(ctx: &egui::Context, texture: &egui::TextureHandle) {
-    let window = eframe::egui::Window::new("Image");
-    window.collapsible(false).resizable(false).show(ctx, |ui| {
-        ui.horizontal(|ui| {
-            ui.add(egui::Image::new(texture, [1000.0, 800.0]));
-        });
-    });
-}
+

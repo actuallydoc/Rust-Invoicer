@@ -18,12 +18,12 @@ pub struct FontSizes {
     pub large: f64,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InvoiceStructure {
     pub font_sizes: FontSizes,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Partner {
     pub partner_name: String,
@@ -32,7 +32,7 @@ pub struct Partner {
     pub partner_vat_id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Service {
     pub service_name: String,
@@ -42,7 +42,7 @@ pub struct Service {
     pub service_currency: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Company {
     pub company_currency: String,
@@ -60,13 +60,13 @@ pub struct Company {
     pub company_business_registered_at: String,
 }
 impl Company {}
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Racun {
     pub invoice: Invoice,
     pub config: InvoiceStructure,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Invoice {
     pub invoice_number: i32,
@@ -638,8 +638,7 @@ pub fn init(racun: &Racun) {
         None => println!("Error Already exists or couldn't save pdf"),
     }
     //Save the json data to output.json
-
-    //Convert invoice to jpg
+    save_to_json(&racun);
 }
 
 pub fn save_to_json(racun: &Racun) {
