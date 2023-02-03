@@ -16,7 +16,7 @@
 - [✔] Invoice generator
 - [✔] Fixed invoice template with table support
 - [✔] Invoice Rendering through the GUI
-- [❌] Invoice generation through GUI(Only fake for now)
+- [☑] Invoice generation through GUI(Only fake invoices for now)
 - [✔] Deleting PDF's
 - [✔] Only Slovenian language support(FOR NOW)
 - [✔] Customizable data in the invoice (company , partner, services etc..)
@@ -26,7 +26,7 @@
 - [❌] Multithreading , Async etc(The app is pretty slow rn).
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
-- [❌] Discord RPC just for curiosity of learning hehe
+- [❌] Hopefully i can implement to convert PDF into JPG and save it to memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
 
 # Showcase
 

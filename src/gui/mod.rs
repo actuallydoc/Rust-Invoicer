@@ -6,11 +6,10 @@ use egui::{widgets, Color32, TextureHandle};
 use egui::{RichText, Vec2};
 use rand::Rng;
 use fs::File;
-use std::{env, thread};
+use std::{env};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
-use crate::rpc::{DiscordRPC, RPC};
 //Consts
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
@@ -26,7 +25,7 @@ struct GuiApp {
     json_data: Vec<Racun>,
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
-    delete_invoice_path: PathBuf,
+    // delete_invoice_path: PathBuf,
     texture: Option<TextureHandle>,
     refresh: bool, 
    
@@ -48,12 +47,9 @@ impl Data for GuiApp {
             invoice_paths: Vec::new(),
             json_data: Vec::new(),
             delete_invoice: false,
-            delete_invoice_path: PathBuf::new(),
+            // delete_invoice_path: PathBuf::new(),
             texture: None,
-            refresh: false,
-
-        
-            
+            refresh: false,    
         };
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
@@ -115,6 +111,7 @@ impl eframe::App for GuiApp {
         if self.refresh {
             self.invoice_paths = self.get_invoices();
             self.parse_jsons();
+            
             self.refresh = false;
         }
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -197,7 +194,7 @@ impl eframe::App for GuiApp {
                                         {
                                             self.clicked_pdf_path = invoice_path.path();
                                             //Get the JPG file from the clicked invoice and render it
-                                            if let Some(value) = self.clicked_pdf_path.file_name() {
+                                            if let Some(_) = self.clicked_pdf_path.file_name() {
                                                 
                                                 if let Ok(files) =
                                                     fs::read_dir(&self.clicked_pdf_path)
