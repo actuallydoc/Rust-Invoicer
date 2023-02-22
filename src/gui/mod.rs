@@ -172,6 +172,8 @@ impl eframe::App for GuiApp {
                             ui.label(invoice.invoice.partner.partner_name.to_string());
                             ui.label(invoice.invoice.company.company_name.to_string());
                             ui.label(invoice.invoice.status.to_string());
+                            //*!TODO Calculate the total price of the invoice*//
+                            //*!BUG Wrong calculations *//
                             for service in &invoice.invoice.services {
                                 //Calculate the total price of the invoice
                                 let mut total_price = 0.0;
