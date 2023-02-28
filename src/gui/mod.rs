@@ -28,12 +28,15 @@ struct GuiApp {
     // delete_invoice_path: PathBuf,
     texture: Option<TextureHandle>,
     refresh: bool, 
+    create: bool,
+    edit: bool,
    
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Vec<DirEntry>;
     fn parse_jsons(&mut self);
+    
     fn new() -> Self;
 }
 
@@ -50,12 +53,14 @@ impl Data for GuiApp {
             // delete_invoice_path: PathBuf::new(),
             texture: None,
             refresh: false,    
+            create: false,
+            edit: false,
         };
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
         this
     }
-    
+   
 
     fn get_invoices(&mut self) -> Vec<DirEntry> {
         let mut path = env::current_dir().unwrap();
@@ -102,6 +107,8 @@ impl Data for GuiApp {
         // Open the json file
     }
 }
+
+
 impl eframe::App for GuiApp {
     fn on_close_event(&mut self) -> bool {
         self.show_confirmation_dialog = true;
@@ -115,9 +122,9 @@ impl eframe::App for GuiApp {
         if self.refresh {
             self.invoice_paths = self.get_invoices();
             self.parse_jsons();
-            
             self.refresh = false;
         }
+      
         egui::CentralPanel::default().show(ctx, |ui| {
             self.refresh = true;
             egui::ScrollArea::new([false, false]).show(ui, |ui| {
@@ -128,13 +135,14 @@ impl eframe::App for GuiApp {
                     CYAN,
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
-                if ui.button("Refresh invoices").clicked() {
-                    self.refresh = true;
-                
+                if ui.button(RichText::new("Create").color(Color32::GREEN)).clicked() {
+                    self.create = true;
                 }
+                //*!Only for debug purposes  *//
                 if ui.button("Generate fake invoice").clicked() {
                    
                     let racun = make_fake_invoice();
+                    //Spawn a new thread to generate the invoice and not freeze the ui
                     thread::spawn(|| {
                         match init(racun) {
                             Ok(_) => {
@@ -186,11 +194,9 @@ impl eframe::App for GuiApp {
                             ui.label(invoice.invoice.partner.partner_name.to_string());
                             ui.label(invoice.invoice.company.company_name.to_string());
                             ui.label(invoice.invoice.status.to_string());
-                            //*!TODO Calculate the total price of the invoice*//
-                            //*!BUG Wrong calculations *//
+                         
                             for service in &invoice.invoice.services {
                                 //Calculate the total price of the invoice
-
                                 let mut total_price = 0.0;
                                 total_price += service.service_price + service.service_tax;
                                 ui.label(total_price.to_string());
@@ -300,7 +306,15 @@ impl eframe::App for GuiApp {
                 });
             });
         });
-        
+        if self.create {
+            egui::Window::new("Create invoice!").resizable(true).show(ctx,|ui|{
+
+                if ui.button("Close").clicked(){
+                    self.create = false
+                }
+            
+            }); 
+        }
         if self.show_image {
                 // println!("Show image is true");
             if self.texture.is_some() {
@@ -347,8 +361,6 @@ self.show_image = false;
         }
     }
 }
-
-
 
 
 //Only for testing purposes
@@ -422,6 +434,12 @@ fn make_fake_invoice()-> Racun {
     };
     racun1
 }
+
+
+
+
+
+
 
 
 pub fn entry() {
