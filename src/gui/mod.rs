@@ -6,7 +6,7 @@ use egui::{widgets, Color32, TextureHandle};
 use egui::{RichText, Vec2};
 use rand::Rng;
 use fs::File;
-use std::{env};
+use std::{env, thread};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
@@ -78,7 +78,11 @@ impl Data for GuiApp {
             file_path.push("output.json");
             let mut file_content = match File::open(file_path.to_str().unwrap().to_string()) {
                 Ok(file) => file,
-                Err(_) => panic!("Could not read the json file"), //*!TODO This panics alot if the user clicks refresh too fast or if the dir doesnt have the json (idk how tho) *//
+                Err(_) => {
+                    println!("Could not parse the json file.There could be a problem with the json file or the file could be missing.");
+                    continue;
+            
+                }, //*!TODO This panics alot if the user clicks refresh too fast or if the dir doesnt have the json (idk how tho) *//
             };
             let mut contents = String::new();
             match file_content.read_to_string(&mut contents) {
@@ -115,6 +119,7 @@ impl eframe::App for GuiApp {
             self.refresh = false;
         }
         egui::CentralPanel::default().show(ctx, |ui| {
+            self.refresh = true;
             egui::ScrollArea::new([false, false]).show(ui, |ui| {
                 ui.label("Project repo:");
                 ui.add(widgets::Hyperlink::new("https://github.com/actuallydoc"));
@@ -123,23 +128,32 @@ impl eframe::App for GuiApp {
                     CYAN,
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
-                if ui.button("Rrefresh invoices").clicked() {
+                if ui.button("Refresh invoices").clicked() {
                     self.refresh = true;
-                    ctx.request_repaint();
+                
                 }
                 if ui.button("Generate fake invoice").clicked() {
                    
-
                     let racun = make_fake_invoice();
-                    init(racun);
+                    thread::spawn(|| {
+                        match init(racun) {
+                            Ok(_) => {
+                                println!("Invoice generated");
+                                
                     
+                            }
+                            Err(err) => {
+                                println!("Error: {}", err);
+                            }
+                        };
+                    });
+                   
+
                     //*!TODO Refresh doesnt work so it doesnnt. *//
-                    self.refresh = true;
-                    ctx.request_repaint();
-               
+                   
+                
                 }
                 ui.add_space(PADDING);
-                
                 ui.add_space(PADDING);
                 //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
                 ui.add_space(10.0);
@@ -176,6 +190,7 @@ impl eframe::App for GuiApp {
                             //*!BUG Wrong calculations *//
                             for service in &invoice.invoice.services {
                                 //Calculate the total price of the invoice
+
                                 let mut total_price = 0.0;
                                 total_price += service.service_price + service.service_tax;
                                 ui.label(total_price.to_string());
@@ -375,22 +390,22 @@ fn make_fake_invoice()-> Racun {
             services: vec![Service {
                 service_currency: "EUR".to_string(),
                 service_name: "Service name".to_string(),
-                service_price:rng.gen_range(1..1000) as f64,
-                service_quantity: rng.gen_range(1..5) as i32,
+                service_price: 15.30,
+                service_quantity: 1,
                 service_tax: 22.0,
 
             }, Service {
                 service_currency: "EUR".to_string(),
                 service_name: "Service name".to_string(),
-                service_price: rng.gen_range(1..1000) as f64,
-                service_quantity: rng.gen_range(1..5) as i32,
+                service_price: 15.30,
+                service_quantity: 1,
                 service_tax: 22.0,
 
             },Service {
                 service_currency: "EUR".to_string(),
                 service_name: "Service name".to_string(),
-                service_price: rng.gen_range(1..1000) as f64,
-                service_quantity: rng.gen_range(1..5) as i32,
+                service_price: 15.30,
+                service_quantity: 1,
                 service_tax: 22.0,
 
             }],

@@ -3,9 +3,10 @@ use printpdf::*;
 use serde::{Deserialize, Serialize};
 use std::{
     env,
+    error::Error,
     fmt::Display,
     fs::{self, read_to_string, File},
-    io::{BufWriter, Write},
+    io::{BufWriter, ErrorKind, Write},
     path::PathBuf,
 };
 
@@ -593,7 +594,7 @@ pub fn render_invoice_header(
         &standard_font,
     );
 }
-pub fn init(racun: Racun) {
+pub fn init(racun: Racun) -> Result<(), Box<dyn Error>> {
     let (doc, page1, layer1) = PdfDocument::new(
         racun.invoice.invoice_number.to_string(),
         Mm(210.0), //Page size A4
@@ -650,10 +651,18 @@ pub fn init(racun: Racun) {
                 Err(e) => println!("Error saving invoice image: {}", e),
             }
         }
-        None => println!("Error Already exists or couldn't save pdf"),
+        None => {
+            println!("Error saving invoice");
+            //Return an option of dyn error
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Error saving invoice",
+            )));
+        }
     }
     //Save the json data to output.json
     save_to_json(&racun);
+    Ok(())
 }
 
 pub fn save_to_json(racun: &Racun) {
