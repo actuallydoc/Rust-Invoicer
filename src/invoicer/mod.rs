@@ -34,7 +34,7 @@ pub struct FontSizes {
     pub large: f64,
 }
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct InvoiceStructure {
     pub font_sizes: FontSizes,
@@ -82,10 +82,10 @@ pub struct Racun {
     pub invoice: Invoice,
     pub config: InvoiceStructure,
 }
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Invoice {
-    pub invoice_number: i32,
+    pub invoice_number: String,
     pub invoice_date: String,
     pub invoice_location: String,
     pub service_date: String,
@@ -100,11 +100,49 @@ pub struct Invoice {
     pub status: PaymentStatus,
 }
 
+impl Default for Invoice {
+    fn default() -> Self {
+        Self {
+            invoice_number: "0000".to_string(),
+            invoice_date: "01.01.2021".to_string(),
+            invoice_location: "Ljubljana".to_string(),
+            service_date: "01.01.2021".to_string(),
+            invoice_currency: "EUR".to_string(),
+            due_date: "01.01.2021".to_string(),
+            partner: Partner::default(),
+            company: Company::default(),
+            invoice_tax: 0.0,
+            invoice_reference: "0000".to_string(),
+            services: vec![],
+            created_by: "Invoicer".to_string(),
+            status: PaymentStatus::UNPAID,
+        }
+    }
+}
+
+impl Default for InvoiceStructure {
+    fn default() -> Self {
+        Self {
+            font_sizes: FontSizes {
+                small: 9.0,
+                medium: 12.0,
+                large: 16.0,
+            },
+        }
+    }
+}
+
 impl Racun {
     pub fn parse_from_file() -> Self {
         let data = read_to_string("data.json").expect("Cannot read file");
         let parsed: Self = serde_json::from_str(&data).expect("JSON does not have correct format.");
         parsed
+    }
+    pub fn new() -> Self {
+        Self {
+            invoice: Invoice::default(),
+            config: InvoiceStructure::default(),
+        }
     }
 }
 //Helper functions
@@ -594,7 +632,7 @@ pub fn render_invoice_header(
         &standard_font,
     );
 }
-pub fn init(racun: Racun) -> Result<(), Box<dyn Error>> {
+pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
     let (doc, page1, layer1) = PdfDocument::new(
         racun.invoice.invoice_number.to_string(),
         Mm(210.0), //Page size A4
@@ -640,7 +678,7 @@ pub fn init(racun: Racun) -> Result<(), Box<dyn Error>> {
                 a.to_str().expect("Coulnd't convert to &str"),
                 jpg_file_path.to_str().expect("Coulnd't convert to &str"),
                 None,
-                racun.invoice.invoice_number,
+                racun.invoice.invoice_number.parse::<i32>().unwrap(),
             ) {
                 Ok(_) => {
                     println!("Invoice image saved ✔");

@@ -31,6 +31,7 @@ struct GuiApp {
     create: bool,
     edit: bool,
     latest_invoice: Racun,
+    add_service: bool
 }
 
 trait Data {
@@ -55,7 +56,8 @@ impl Data for GuiApp {
             refresh: false,    
             create: false,
             edit: false,
-            latest_invoice: Racun::default()
+            latest_invoice: Racun::new(),
+            add_service: false
         };
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
@@ -104,10 +106,7 @@ impl Data for GuiApp {
             };
         }
         self.json_data = json_data;
-
-        if let Some(invoice) = self.json_data.iter().last() {
-            self.latest_invoice = invoice.clone();
-        }
+    
        
     }
 }
@@ -147,8 +146,8 @@ impl eframe::App for GuiApp {
                    
                     let racun = make_fake_invoice();
                     //Spawn a new thread to generate the invoice and not freeze the ui
-                    thread::spawn(|| {
-                        match init(racun) {
+                    thread::spawn(move || {
+                        match init(&racun.clone()) {
                             Ok(_) => {
                                 println!("Invoice generated");
                                 
@@ -322,6 +321,8 @@ impl eframe::App for GuiApp {
                                 .on_hover_text("Company IBAN");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_swift))
                                 .on_hover_text("Company SWIFT");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_bankname))
+                            .on_hover_text("Company Bank Name");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_address))
                                 .on_hover_text("Company address");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_postal_code))
@@ -330,6 +331,14 @@ impl eframe::App for GuiApp {
                                 .on_hover_text("Company VAT");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_phone))
                                 .on_hover_text("Company PHONE");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_registration_number))
+                                .on_hover_text("Company Registeration number");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_business_registered_at))
+                                .on_hover_text("Company Registered at");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_currency))
+                                .on_hover_text("Company currency");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_signature))
+                                .on_hover_text("Company signature");
                         });
                         ui.vertical(|ui| {
                             ui.heading("Partner data");
@@ -344,7 +353,7 @@ impl eframe::App for GuiApp {
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
-                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_number.to_string()))
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_number))
                                 .on_hover_text("Invoice number");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_date))
                                 .on_hover_text("Invoice date");
@@ -352,9 +361,18 @@ impl eframe::App for GuiApp {
                                 .on_hover_text("Invoice service date");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.due_date))
                                 .on_hover_text("Invoice due date");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_location))
+                                .on_hover_text("Invoice location");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_currency))
+                                .on_hover_text("Invoice currency");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_reference))
+                                .on_hover_text("Invoice reference");
+                            ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.created_by))
+                                .on_hover_text("Created by");
                         });
-                    });
+                    }); 
                     ui.vertical(|ui| {
+                        let mut delete = None;
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             ui.vertical_centered(|ui| {
                                 ui.heading("Services");
@@ -370,29 +388,73 @@ impl eframe::App for GuiApp {
                                         .on_hover_text(
                                             "Payment amount without vat. Vat is calculated on the end",
                                         );
-                                       
-                                    });
+                                        if ui
+                                        .add(egui::Button::new("Delete"))
+                                        .on_hover_text("Delete a service. THIS CANNOT BE UNDONE!")
+                                        .clicked()
+                                             {
+                                        delete = Some(pos);
+                                            };
+                                     });
+                                     
+                                }
+                                if let Some(pos) = delete {
+                                    println!("Deleting : {}", pos);
+                                    self.latest_invoice.invoice.services.remove(pos);
                                 }
                                 if ui.button("Add service").clicked() {
-                                    self.latest_invoice.invoice.services.push(Service {
-                                        service_name: String::from(""),
-                                        service_price: 0.0,
-                                        service_currency: String::from("EUR"),
-                                        service_quantity: 1,
-                                        service_tax: 22.0
-                                    });
+                                    self.add_service = true;
                                 }
                             });
                         });
                      
                     });
+                    if self.add_service {
+                        egui::Window::new("Add a service")
+                            .collapsible(false)
+                            .resizable(false)
+                            .min_width(500.0)
+                            .min_height(500.0)
+                            .show(ctx, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("What kind of service do you want to add?");
+                                    if ui
+                                        .button("Create a blank service!")
+                                        .on_hover_text("Create a blank service with no data")
+                                        .clicked()
+                                    {
+                                        let new_service = Service::default();
+                                        self.latest_invoice.invoice.services.push(new_service);
+                                        // self.service_count += 1;
+                                        self.add_service = false;
+                                    }
+                                })
+                            });
+                    }
+                    
                 });
+                if ui.button("Create").clicked(){
+                        let invoice = self.latest_invoice.clone();
+                        thread::spawn(move || {
+                            match init(&invoice) {
+                                Ok(_) => {
+                                    println!("Invoice generated");
+                                    println!("Invoice: {:#?}", invoice)
+                                    
+                                }
+                                Err(err) => {
+                                    println!("Error: {}", err);
+                                }
+                            };
+                        });
+                    }
                 if ui.button("Close").clicked(){
                     self.create = false
                 }
             
             }); 
         }
+       
         if self.show_image {
                 // println!("Show image is true");
             if self.texture.is_some() {
@@ -446,7 +508,7 @@ fn make_fake_invoice()-> Racun {
     let mut rng = rand::thread_rng();
     let racun1 = Racun {
         invoice: Invoice {
-            invoice_number: rng.gen_range(1..200),
+            invoice_number: rng.gen_range(1..200).to_string(),
             invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
             due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
             service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
