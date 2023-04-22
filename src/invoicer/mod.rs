@@ -680,10 +680,10 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
     );
     //Font entry
     let bold_font = doc
-        .add_external_font(File::open("fonts/DejaVuSans-Bold.ttf").expect("Could't open font file"))
+        .add_external_font(File::open("fonts/font_bold.ttf").expect("Could't open font file"))
         .unwrap();
     let standard_font = doc
-        .add_external_font(File::open("fonts/DejaVuSans.ttf").expect("Could't open font file"))
+        .add_external_font(File::open("fonts/font.ttf").expect("Could't open font file"))
         .unwrap();
     let current_layer = doc.get_page(page1).get_layer(layer1);
     //Start of text

@@ -15,8 +15,6 @@ const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 
-
-
 struct GuiApp {
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
@@ -36,7 +34,7 @@ struct GuiApp {
 }
 
 trait Data {
-    fn get_invoices(&mut self) -> Vec<DirEntry>;
+    fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
     fn parse_jsons(&mut self);
     
     fn new() -> Self;
@@ -61,29 +59,41 @@ impl Data for GuiApp {
             add_service: false,
             clicked_invoice: Racun::default()
         };
-        this.invoice_paths = this.get_invoices();
+        if let Some(invoices) = this.get_invoices() {
+            this.invoice_paths = invoices;
+        }else {
+            this.invoice_paths = Vec::new();
+        }
         this.parse_jsons();
         this
     }
    
 
-    fn get_invoices(&mut self) -> Vec<DirEntry> {
+    fn get_invoices(&mut self) -> Option<Vec<DirEntry>> {
         let mut path = env::current_dir().unwrap();
         let invoice_folder = PathBuf::from("invoices");
         path.push(&invoice_folder);
     
-        let folders: Vec<DirEntry> = fs::read_dir(path)
-            .unwrap()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| entry.file_type().unwrap().is_dir())
-            .collect();
-        folders
+        match fs::read_dir(path) {
+            Ok(folders) => {
+                let folders: Vec<DirEntry> = folders
+                    .filter_map(|entry| entry.ok())
+                    .filter(|entry| entry.file_type().unwrap().is_dir())
+                    .collect();
+                Some(folders)
+            }
+            Err(_) => {
+                // println!("Could not find the invoices folder");
+                fs::create_dir(invoice_folder).unwrap();
+                None
+            }
     }
+}
     fn parse_jsons(&mut self) {
         let paths = self.get_invoices();
         //Make a vector of invoices
         let mut json_data: Vec<Racun> = Vec::new();
-        for path in paths {
+        for path in paths.unwrap() {
             let mut file_path = path.path();
             file_path.push("output.json");
             let mut file_content = match File::open(file_path.to_str().unwrap().to_string()) {
@@ -125,9 +135,16 @@ impl eframe::App for GuiApp {
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         if self.refresh {
-            self.invoice_paths = self.get_invoices();
-            self.parse_jsons();
+            if self.get_invoices().is_some() {
+                self.invoice_paths = self.get_invoices().unwrap();
+                self.parse_jsons();
             self.refresh = false;
+            } else {
+                self.invoice_paths = Vec::new();
+                self.parse_jsons();
+                self.refresh = false;
+            }
+
         }
       
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -300,8 +317,7 @@ impl eframe::App for GuiApp {
 
                                         }
                                     }
-                                    //Delete the invoice from the gui and from the json file
-                                    //TODO: Implement this
+                       
                                 };
                             });
 
