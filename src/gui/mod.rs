@@ -366,11 +366,19 @@ impl eframe::App for GuiApp {
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_location))
                                 .on_hover_text("Invoice location");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_currency))
-                                .on_hover_text("Invoice currency");
+                                .on_hover_text("Invoice currency (SYMBOL)");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.invoice_reference))
                                 .on_hover_text("Invoice reference");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.created_by))
                                 .on_hover_text("Created by");
+                            ui.add(
+                                egui::Slider::new(&mut self.latest_invoice.invoice.invoice_tax, 0.0..=100.0)
+                                    .text("Tax rate")
+                                    .max_decimals(3),
+                            )
+                            .on_hover_text(
+                                "Payment amount without vat. Vat is calculated on the end",
+                            );
                         });
                     }); 
                     ui.vertical(|ui| {
@@ -385,6 +393,14 @@ impl eframe::App for GuiApp {
                                         ui.add(
                                             egui::Slider::new(&mut service.service_price, 0.0..=10000.0)
                                                 .text("Amount to pay")
+                                                .max_decimals(3),
+                                        )
+                                        .on_hover_text(
+                                            "Payment amount without vat. Vat is calculated on the end",
+                                        );
+                                        ui.add(
+                                            egui::Slider::new(&mut service.service_quantity, 0..=100)
+                                                .text("Quantity")
                                                 .max_decimals(3),
                                         )
                                         .on_hover_text(

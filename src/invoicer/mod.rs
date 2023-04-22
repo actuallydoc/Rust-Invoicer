@@ -298,6 +298,7 @@ pub fn render_service(
     mut y: Mm,
     layer: &PdfLayerReference,
     font: &IndirectFontRef,
+    invoice: &Racun,
     service: &Service,
 ) -> (Mm, Mm) {
     //Converting it to float and getting total price of services multiplied by quantity
@@ -319,7 +320,7 @@ pub fn render_service(
     //Always a constant
     let ddv_x = Mm(165.0);
     //Formated text add a percentage sign to the service_tax string
-    let formated_vat = format!("{}%", service.service_tax);
+    let formated_vat = format!("{}%", invoice.invoice.invoice_tax);
 
     layer.use_text(formated_vat, 9.0, ddv_x, y, font);
     //Render service price
@@ -362,8 +363,9 @@ pub fn render_table_contents(
     let mut total_price = 0.0;
     //Render services with the lines above
     for service in racun.invoice.services.iter() {
+        println!("{} {} {}", service.service_name, service.service_price, service.service_quantity);
         total_price += service.service_price * (service.service_quantity as f64);
-        let (new_x, new_y) = render_service(x, y, layer, standard_font, service);
+        let (new_x, new_y) = render_service(x, y, layer, standard_font, racun,service);
         x = new_x;
         y = new_y;
     }
@@ -430,6 +432,9 @@ pub fn render_table_end(
         y,
         font,
     );
+    println!("Price with tax: {}", total_price_with_tax);
+    println!("Price without tax: {}", total_price);
+    println!("Tax difference: {}", calculated_tax_difference);
     //Decrease the Y by a couple of Mm
     let y = y - Mm(1.0);
     make_line(layer, Mm(165.0), y, Mm(195.0), y);
