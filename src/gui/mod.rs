@@ -56,7 +56,7 @@ impl Data for GuiApp {
             refresh: false,    
             create: false,
             edit: false,
-            latest_invoice: Racun::new(),
+            latest_invoice: Racun::default(),
             add_service: false
         };
         this.invoice_paths = this.get_invoices();
@@ -201,7 +201,7 @@ impl eframe::App for GuiApp {
                             for service in &invoice.invoice.services {
                                 //Calculate the total price of the invoice
                                 let mut total_price = 0.0;
-                                total_price += service.service_price + service.service_tax;
+                                total_price += service.service_price + invoice.invoice.invoice_tax;
                                 ui.label(total_price.to_string());
                             }
                             ui.label(invoice.invoice.invoice_currency.to_string());
@@ -441,7 +441,7 @@ impl eframe::App for GuiApp {
                                         .on_hover_text("Create a blank service with no data")
                                         .clicked()
                                     {
-                                        let new_service = Service::default();
+                                        let new_service = Service::default("Service 1", 1, 0.0);
                                         self.latest_invoice.invoice.services.push(new_service);
                                         // self.service_count += 1;
                                         self.add_service = false;
@@ -558,25 +558,25 @@ fn make_fake_invoice()-> Racun {
             invoice_reference: "123456789".to_string(),
             created_by: "Invoice generator".to_string(),
             services: vec![Service {
-                service_currency: "EUR".to_string(),
+                
                 service_name: "Service name".to_string(),
                 service_price: 15.30,
                 service_quantity: 1,
-                service_tax: 22.0,
+                
 
             }, Service {
-                service_currency: "EUR".to_string(),
+                
                 service_name: "Service name".to_string(),
                 service_price: 15.30,
                 service_quantity: 1,
-                service_tax: 22.0,
+                
 
             },Service {
-                service_currency: "EUR".to_string(),
+                
                 service_name: "Service name".to_string(),
                 service_price: 15.30,
                 service_quantity: 1,
-                service_tax: 22.0,
+                
 
             }],
             status: crate::invoicer::PaymentStatus::UNPAID,

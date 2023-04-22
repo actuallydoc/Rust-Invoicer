@@ -39,7 +39,7 @@ pub struct FontSizes {
 pub struct InvoiceStructure {
     pub font_sizes: FontSizes,
 }
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Partner {
     pub partner_name: String,
@@ -47,18 +47,34 @@ pub struct Partner {
     pub partner_postal_code: String,
     pub partner_vat_id: String,
 }
+impl Partner {
+    pub fn default() -> Self {
+        Self {
+            partner_name: "Partner".to_string(),
+            partner_address: "Address".to_string(),
+            partner_postal_code: "0000".to_string(),
+            partner_vat_id: "00000000".to_string(),
+        }
+    }
+}
 
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Service {
     pub service_name: String,
     pub service_quantity: i32,
     pub service_price: f64,
-    pub service_tax: f64,
-    pub service_currency: String,
 }
-
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+impl Service {
+    pub fn default(name: &str, quantity: i32, price: f64) -> Self {
+        Self {
+            service_name: name.to_string(),
+            service_quantity: quantity,
+            service_price: price,
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Company {
     pub company_currency: String,
@@ -75,8 +91,26 @@ pub struct Company {
     pub company_vat_rate: f64,
     pub company_business_registered_at: String,
 }
-impl Company {}
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+impl Company {
+    pub fn default() -> Self {
+        Self {
+            company_currency: "EUR".to_string(),
+            company_name: "Company".to_string(),
+            company_address: "Address".to_string(),
+            company_postal_code: "0000".to_string(),
+            company_bankname: "Bank".to_string(),
+            company_vat_id: "00000000".to_string(),
+            company_iban: "00000000000000000000".to_string(),
+            company_swift: "000000000".to_string(),
+            company_registration_number: "00000000000000000000".to_string(),
+            company_phone: "000000000".to_string(),
+            company_signature: "000000000".to_string(),
+            company_vat_rate: 0.0,
+            company_business_registered_at: "000000000".to_string(),
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Racun {
     pub invoice: Invoice,
@@ -113,7 +147,7 @@ impl Default for Invoice {
             company: Company::default(),
             invoice_tax: 0.0,
             invoice_reference: "0000".to_string(),
-            services: vec![],
+            services: vec![Service::default("Service", 1, 0.0)],
             created_by: "Invoicer".to_string(),
             status: PaymentStatus::UNPAID,
         }
@@ -138,7 +172,7 @@ impl Racun {
         let parsed: Self = serde_json::from_str(&data).expect("JSON does not have correct format.");
         parsed
     }
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         Self {
             invoice: Invoice::default(),
             config: InvoiceStructure::default(),
@@ -310,7 +344,7 @@ pub fn render_service(
     let service_x = Mm(180.0);
     //Rendering price that has to be paid included with tax
     layer.use_text(
-        format!("{:.2}{}", new_value, service.service_currency),
+        format!("{:.2}{}", new_value, invoice.invoice.invoice_currency),
         9.0,
         service_x,
         y,
@@ -330,7 +364,7 @@ pub fn render_service(
 
     let formated_price = format!(
         "{:.2}{}",
-        service_by_quantity_price, service.service_currency
+        service_by_quantity_price, invoice.invoice.invoice_currency
     );
     layer.use_text(formated_price, 9.0, price_x, y, font);
 
