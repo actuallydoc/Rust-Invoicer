@@ -1,10 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::{Racun, init, Invoice, InvoiceStructure, FontSizes, Service, Company, Partner};
+use crate::invoicer::{Racun, init, Service};
 use eframe;
 use eframe::egui;
 use egui::{widgets, Color32, TextureHandle, Align};
 use egui::{RichText, Vec2};
-use rand::Rng;
 use fs::File;
 use std::{env, thread};
 use std::fs::{self, DirEntry};
@@ -23,7 +22,6 @@ struct GuiApp {
     json_data: Vec<Racun>,
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
-    // delete_invoice_path: PathBuf,
     texture: Option<TextureHandle>,
     refresh: bool, 
     create: bool,
@@ -36,7 +34,6 @@ struct GuiApp {
 trait Data {
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
     fn parse_jsons(&mut self);
-    
     fn new() -> Self;
 }
 
@@ -160,29 +157,6 @@ impl eframe::App for GuiApp {
                 if ui.button(RichText::new("Create").color(Color32::GREEN)).clicked() {
                     self.create = true;
                 }
-                //*!Only for debug purposes  *//
-                // if ui.button("Generate fake invoice").clicked() {
-                   
-                //     let racun = make_fake_invoice();
-                //     //Spawn a new thread to generate the invoice and not freeze the ui
-                //     thread::spawn(move || {
-                //         match init(&racun.clone()) {
-                //             Ok(_) => {
-                //                 println!("Invoice generated");
-                                
-                    
-                //             }
-                //             Err(err) => {
-                //                 println!("Error: {}", err);
-                //             }
-                //         };
-                //     });
-                   
-
-                //     //*!TODO Refresh doesnt work so it doesnnt. *//
-                   
-                
-                // }
                 ui.add_space(PADDING);
                 ui.add_space(PADDING);
                 //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
@@ -693,77 +667,76 @@ self.show_image = false;
 }
 
 
-//Only for testing purposes
-fn make_fake_invoice()-> Racun {
-    let mut rng = rand::thread_rng();
-    let racun1 = Racun {
-        invoice: Invoice {
-            invoice_number: rng.gen_range(1..200).to_string(),
-            invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-            due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-            service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-            invoice_currency: "EUR".to_string(),
-            company: Company {
-                company_address: "Company address".to_string(),
-                company_name: "Company name".to_string(),
-                company_bankname: "Company bank name".to_string(),
-                company_business_registered_at: "Company business registered at".to_string(),
-                company_currency: "EUR".to_string(),
-                company_iban: "Company iban".to_string(),
-                company_phone: "Company phone".to_string(),
-                company_postal_code: "Company postal code".to_string(),
-                company_registration_number: "Company registration number".to_string(),
-                company_vat_rate: 22.0,
-                company_signature: "Company signature".to_string(),
-                company_swift: "Company swift".to_string(),
-                company_vat_id: "Company vat id".to_string(),
-            },
-            invoice_location: "Slovenia".to_string(),
-            partner: Partner {
-                partner_address: "Partner address".to_string(),
-                partner_name: "Partner name".to_string(),
-                partner_postal_code: "Partner postal code".to_string(),
-                partner_vat_id: "Partner vat id".to_string(),
+// fn make_fake_invoice()-> Racun {
+//     let mut rng = rand::thread_rng();
+//     let racun1 = Racun {
+//         invoice: Invoice {
+//             invoice_number: rng.gen_range(1..200).to_string(),
+//             invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+//             due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+//             service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
+//             invoice_currency: "EUR".to_string(),
+//             company: Company {
+//                 company_address: "Company address".to_string(),
+//                 company_name: "Company name".to_string(),
+//                 company_bankname: "Company bank name".to_string(),
+//                 company_business_registered_at: "Company business registered at".to_string(),
+//                 company_currency: "EUR".to_string(),
+//                 company_iban: "Company iban".to_string(),
+//                 company_phone: "Company phone".to_string(),
+//                 company_postal_code: "Company postal code".to_string(),
+//                 company_registration_number: "Company registration number".to_string(),
+//                 company_vat_rate: 22.0,
+//                 company_signature: "Company signature".to_string(),
+//                 company_swift: "Company swift".to_string(),
+//                 company_vat_id: "Company vat id".to_string(),
+//             },
+//             invoice_location: "Slovenia".to_string(),
+//             partner: Partner {
+//                 partner_address: "Partner address".to_string(),
+//                 partner_name: "Partner name".to_string(),
+//                 partner_postal_code: "Partner postal code".to_string(),
+//                 partner_vat_id: "Partner vat id".to_string(),
 
-            },
-            invoice_tax: 22.0,
-            invoice_reference: "123456789".to_string(),
-            created_by: "Invoice generator".to_string(),
-            services: vec![Service {
+//             },
+//             invoice_tax: 22.0,
+//             invoice_reference: "123456789".to_string(),
+//             created_by: "Invoice generator".to_string(),
+//             services: vec![Service {
                 
-                service_name: "Service name".to_string(),
-                service_price: 15.30,
-                service_quantity: 1,
-                
-
-            }, Service {
-                
-                service_name: "Service name".to_string(),
-                service_price: 15.30,
-                service_quantity: 1,
+//                 service_name: "Service name".to_string(),
+//                 service_price: 15.30,
+//                 service_quantity: 1,
                 
 
-            },Service {
+//             }, Service {
                 
-                service_name: "Service name".to_string(),
-                service_price: 15.30,
-                service_quantity: 1,
+//                 service_name: "Service name".to_string(),
+//                 service_price: 15.30,
+//                 service_quantity: 1,
                 
 
-            }],
-            status: crate::invoicer::PaymentStatus::UNPAID,
+//             },Service {
+                
+//                 service_name: "Service name".to_string(),
+//                 service_price: 15.30,
+//                 service_quantity: 1,
+                
+
+//             }],
+//             status: crate::invoicer::PaymentStatus::UNPAID,
             
-        },
-        config: InvoiceStructure {
-            font_sizes: FontSizes {
-                small:9.0,
-                medium:14.0,
-                large:16.0,
-            }
-        }
-    };
-    racun1
-}
+//         },
+//         config: InvoiceStructure {
+//             font_sizes: FontSizes {
+//                 small:9.0,
+//                 medium:14.0,
+//                 large:16.0,
+//             }
+//         }
+//     };
+//     racun1
+// }
 
 
 

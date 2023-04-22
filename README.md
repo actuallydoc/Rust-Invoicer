@@ -14,7 +14,7 @@
 If you actually want to use it there are some steps 
 ```
 Step 1: Install Fonts
-Step 2: Put fonts inside "/fonts" and name them font.ttf and font_bold.ttf (Both have to be there)
+Step 2: Put fonts inside "/fonts" and name them font.ttf and font_bold.ttf (Both have to be)
 Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 ```
 #### Features
@@ -26,8 +26,7 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 - [✔] Invoice generation through GUI
 - [✔] Deleting PDF's
 - [✔] Only Slovenian language support(FOR NOW)
-- [✔] Customizable data in the invoice (company , partner, services etc..)
-
+- [✔] Flexible data customization
 #### Upcoming features.
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature

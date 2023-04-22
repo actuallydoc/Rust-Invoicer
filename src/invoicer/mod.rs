@@ -5,8 +5,8 @@ use std::{
     env,
     error::Error,
     fmt::Display,
-    fs::{self, read_to_string, File},
-    io::{BufWriter, ErrorKind, Write},
+    fs::{self, File},
+    io::{BufWriter, Write},
     path::PathBuf,
 };
 
@@ -167,11 +167,7 @@ impl Default for InvoiceStructure {
 }
 
 impl Racun {
-    pub fn parse_from_file() -> Self {
-        let data = read_to_string("data.json").expect("Cannot read file");
-        let parsed: Self = serde_json::from_str(&data).expect("JSON does not have correct format.");
-        parsed
-    }
+
     pub fn default() -> Self {
         Self {
             invoice: Invoice::default(),

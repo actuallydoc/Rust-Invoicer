@@ -17,5 +17,4 @@ pdfium-render = "0.8.1"
 image = "0.24.5"
 egui_extras = "0.21.0"
 rand = "0.8.5"
-discord-rpc-client = "0.3.0"
 tokio = { version = "1.25.0", features = ["full"] }
