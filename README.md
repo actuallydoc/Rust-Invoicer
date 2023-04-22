@@ -16,7 +16,7 @@
 - [✔] Invoice generator
 - [✔] Fixed invoice template with table support
 - [✔] Invoice Rendering through the GUI
-- [☑] Invoice generation through GUI(Only fake invoices for now)
+- [✔] Invoice generation through GUI
 - [✔] Deleting PDF's
 - [✔] Only Slovenian language support(FOR NOW)
 - [✔] Customizable data in the invoice (company , partner, services etc..)

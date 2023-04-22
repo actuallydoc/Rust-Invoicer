@@ -87,7 +87,7 @@ impl Data for GuiApp {
             let mut file_content = match File::open(file_path.to_str().unwrap().to_string()) {
                 Ok(file) => file,
                 Err(_) => {
-                    println!("Could not parse the json file.There could be a problem with the json file or the file could be missing.");
+                    // println!("Could not parse the json file.There could be a problem with the json file or the file could be missing.");
                     continue;
             
                 }, //*!TODO This panics alot if the user clicks refresh too fast or if the dir doesnt have the json (idk how tho) *//
@@ -142,28 +142,28 @@ impl eframe::App for GuiApp {
                     self.create = true;
                 }
                 //*!Only for debug purposes  *//
-                if ui.button("Generate fake invoice").clicked() {
+                // if ui.button("Generate fake invoice").clicked() {
                    
-                    let racun = make_fake_invoice();
-                    //Spawn a new thread to generate the invoice and not freeze the ui
-                    thread::spawn(move || {
-                        match init(&racun.clone()) {
-                            Ok(_) => {
-                                println!("Invoice generated");
+                //     let racun = make_fake_invoice();
+                //     //Spawn a new thread to generate the invoice and not freeze the ui
+                //     thread::spawn(move || {
+                //         match init(&racun.clone()) {
+                //             Ok(_) => {
+                //                 println!("Invoice generated");
                                 
                     
-                            }
-                            Err(err) => {
-                                println!("Error: {}", err);
-                            }
-                        };
-                    });
+                //             }
+                //             Err(err) => {
+                //                 println!("Error: {}", err);
+                //             }
+                //         };
+                //     });
                    
 
-                    //*!TODO Refresh doesnt work so it doesnnt. *//
+                //     //*!TODO Refresh doesnt work so it doesnnt. *//
                    
                 
-                }
+                // }
                 ui.add_space(PADDING);
                 ui.add_space(PADDING);
                 //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
@@ -337,6 +337,8 @@ impl eframe::App for GuiApp {
                                 .on_hover_text("Company Registered at");
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_currency))
                                 .on_hover_text("Company currency");
+
+                            //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
                             ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_signature))
                                 .on_hover_text("Company signature");
                         });
@@ -399,7 +401,7 @@ impl eframe::App for GuiApp {
                                      
                                 }
                                 if let Some(pos) = delete {
-                                    println!("Deleting : {}", pos);
+                                    
                                     self.latest_invoice.invoice.services.remove(pos);
                                 }
                                 if ui.button("Add service").clicked() {
@@ -438,8 +440,8 @@ impl eframe::App for GuiApp {
                         thread::spawn(move || {
                             match init(&invoice) {
                                 Ok(_) => {
-                                    println!("Invoice generated");
-                                    println!("Invoice: {:#?}", invoice)
+                                    // println!("Invoice generated");
+                                    // println!("Invoice: {:#?}", invoice)
                                     
                                 }
                                 Err(err) => {
