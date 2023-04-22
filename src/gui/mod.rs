@@ -30,6 +30,7 @@ struct GuiApp {
     refresh: bool, 
     create: bool,
     edit: bool,
+    clicked_invoice: Racun,
     latest_invoice: Racun,
     add_service: bool
 }
@@ -57,7 +58,8 @@ impl Data for GuiApp {
             create: false,
             edit: false,
             latest_invoice: Racun::default(),
-            add_service: false
+            add_service: false,
+            clicked_invoice: Racun::default()
         };
         this.invoice_paths = this.get_invoices();
         this.parse_jsons();
@@ -275,8 +277,9 @@ impl eframe::App for GuiApp {
                                     self.show_image = true;
                                 };
                                 if ui.button("Edit").clicked() {
-                                    //Open the invoice in a new window with its data and allow the user to edit it
-                                    //TODO: Implement this
+                                    self.clicked_invoice = invoice.clone();
+                                    self.edit = true;
+                                    
                                 };
                                 if ui.button("Delete").clicked() {
                                     self.delete_invoice = true;
@@ -309,6 +312,159 @@ impl eframe::App for GuiApp {
                 });
             });
         });
+        if self.edit {
+            egui::Window::new("Edit invoice!").resizable(true).show(ctx,|ui|{
+                ui.horizontal(|ui|{
+                    ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+                        ui.vertical(|ui| {
+                            ui.heading("Company data");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_name))
+                                .on_hover_text("Company name");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_iban))
+                                .on_hover_text("Company IBAN");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_swift))
+                                .on_hover_text("Company SWIFT");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_bankname))
+                            .on_hover_text("Company Bank Name");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_address))
+                                .on_hover_text("Company address");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_postal_code))
+                                .on_hover_text("Company postal code");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_vat_id))
+                                .on_hover_text("Company VAT");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_phone))
+                                .on_hover_text("Company PHONE");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_registration_number))
+                                .on_hover_text("Company Registeration number");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_business_registered_at))
+                                .on_hover_text("Company Registered at");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_currency))
+                                .on_hover_text("Company currency");
+
+                            //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_signature))
+                                .on_hover_text("Company signature");
+                        });
+                        ui.vertical(|ui| {
+                            ui.heading("Partner data");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.partner.partner_name))
+                                .on_hover_text("Partner name");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.partner.partner_address))
+                                .on_hover_text("Partner Address");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.partner.partner_postal_code))
+                                .on_hover_text("Partner postal code");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.partner.partner_vat_id))
+                                .on_hover_text("Partner VAT");
+                        });
+                        ui.vertical(|ui| {
+                            ui.heading("Invoice data");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.invoice_number))
+                                .on_hover_text("Invoice number");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.invoice_date))
+                                .on_hover_text("Invoice date");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.service_date))
+                                .on_hover_text("Invoice service date");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.due_date))
+                                .on_hover_text("Invoice due date");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.invoice_location))
+                                .on_hover_text("Invoice location");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.invoice_currency))
+                                .on_hover_text("Invoice currency (SYMBOL)");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.invoice_reference))
+                                .on_hover_text("Invoice reference");
+                            ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.created_by))
+                                .on_hover_text("Created by");
+                            ui.add(
+                                egui::Slider::new(&mut self.clicked_invoice.invoice.invoice_tax, 0.0..=100.0)
+                                    .text("Tax rate")
+                                    .max_decimals(3),
+                            )
+                            .on_hover_text(
+                                "Payment amount without vat. Vat is calculated on the end",
+                            );
+                        });
+                    }); 
+                    ui.vertical(|ui| {
+                        let mut delete = None;
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                ui.heading("Services");
+                                for (pos, service) in self.clicked_invoice.invoice.services.iter_mut().enumerate() {
+                                    ui.horizontal(|ui| {
+                                        ui.add(egui::TextEdit::multiline(&mut service.service_name))
+                                            .on_hover_text("Service description");
+                                        ui.add(
+                                            egui::Slider::new(&mut service.service_price, 0.0..=10000.0)
+                                                .text("Amount to pay")
+                                                .max_decimals(3),
+                                        )
+                                        .on_hover_text(
+                                            "Payment amount without vat. Vat is calculated on the end",
+                                        );
+                                        ui.add(
+                                            egui::Slider::new(&mut service.service_quantity, 0..=100)
+                                                .text("Quantity")
+                                                .max_decimals(3),
+                                        )
+                                        .on_hover_text(
+                                            "Payment amount without vat. Vat is calculated on the end",
+                                        );
+                                        if ui
+                                        .add(egui::Button::new("Delete"))
+                                        .on_hover_text("Delete a service. THIS CANNOT BE UNDONE!")
+                                        .clicked()
+                                             {
+                                        delete = Some(pos);
+                                            };
+                                     });
+                                     
+                                }
+                                if let Some(pos) = delete {
+                                    
+                                    self.clicked_invoice.invoice.services.remove(pos);
+                                }
+                                if ui.button("Add service").clicked() {
+                                    self.add_service = true;
+                                }
+                            });
+                        });
+                     
+                    });
+                    if self.add_service {
+                        egui::Window::new("Add a service")
+                            .collapsible(false)
+                            .resizable(false)
+                            .min_width(500.0)
+                            .min_height(500.0)
+                            .show(ctx, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("What kind of service do you want to add?");
+                                    if ui
+                                        .button("Create a blank service!")
+                                        .on_hover_text("Create a blank service with no data")
+                                        .clicked()
+                                    {
+                                        let new_service = Service::default("Service 1", 1, 0.0);
+                                        self.latest_invoice.invoice.services.push(new_service);
+                                        // self.service_count += 1;
+                                        self.add_service = false;
+                                    }
+                                })
+                            });
+                    }
+                    
+                });
+                if ui.button("Edit").clicked(){
+                       //*!!TODO Delete all the previous data from the folder and replace it with the new one*/
+                        self.edit = false;
+                    }
+                if ui.button("Close").clicked(){
+                    self.edit = false
+                }
+            
+            }); 
+        }
+
         if self.create {
             egui::Window::new("Create invoice!").resizable(true).show(ctx,|ui|{
                 ui.horizontal(|ui|{
