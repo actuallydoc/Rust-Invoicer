@@ -64,8 +64,7 @@ impl Data for GuiApp {
         this.parse_jsons();
         this
     }
-   
-
+    
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>> {
         let mut path = env::current_dir().unwrap();
         let invoice_folder = PathBuf::from("invoices");
@@ -84,8 +83,9 @@ impl Data for GuiApp {
                 fs::create_dir(invoice_folder).unwrap();
                 None
             }
+    
+        }
     }
-}
     fn parse_jsons(&mut self) {
         let paths = self.get_invoices();
         //Make a vector of invoices
@@ -115,13 +115,11 @@ impl Data for GuiApp {
             };
         }
         self.json_data = json_data;
-    
-       
     }
+             
 }
 
-
-impl eframe::App for GuiApp {
+impl eframe::App for GuiApp  {
     fn on_close_event(&mut self) -> bool {
         self.show_confirmation_dialog = true;
         self.allowed_to_close
@@ -640,7 +638,6 @@ impl eframe::App for GuiApp {
                 // println!("Image is none");
                 self.texture = None;
             }   
-    
 } else {
 self.show_image = false;
 }
@@ -756,5 +753,5 @@ pub fn entry() {
         "Invoice GUI",
         options.clone(),
         Box::new(|_cc| Box::new(app)),
-    ).unwrap();
+    ).unwrap(); 
 }
