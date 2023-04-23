@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use crate::invoicer::{Racun, init, Service};
+use discord_rpc_client::*;
 use eframe;
 use eframe::egui;
 use egui::{widgets, Color32, TextureHandle, Align};
@@ -9,10 +10,32 @@ use std::{env, thread};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::mpsc::{self, Sender};
 //Consts
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
+pub struct Activity {
+    state: String,
+    details: String,
+    large_image_key: Option<String>,
+    large_image_text: Option<String>,
+    small_image_key: Option<String>,
+    small_image_text: Option<String>,
+}
+
+impl Activity {
+    pub fn new() -> Self {
+        Self {
+            state: String::new(),
+            details: String::new(),
+            large_image_key: None,
+            large_image_text: None,
+            small_image_key: None,
+            small_image_text: None,
+        }
+    }
+}
 
 struct GuiApp {
     allowed_to_close: bool,
@@ -28,7 +51,8 @@ struct GuiApp {
     edit: bool,
     clicked_invoice: Racun,
     latest_invoice: Racun,
-    add_service: bool
+    add_service: bool,
+    
 }
 
 trait Data {
@@ -40,6 +64,7 @@ trait Data {
 impl Data for GuiApp {
     fn new() -> Self {
         let mut this = Self {
+        
             allowed_to_close: false,
             clicked_pdf_path: PathBuf::new(),
             show_confirmation_dialog: false,
@@ -61,6 +86,7 @@ impl Data for GuiApp {
         }else {
             this.invoice_paths = Vec::new();
         }
+       
         this.parse_jsons();
         this
     }
@@ -738,11 +764,27 @@ self.show_image = false;
 
 
 
+pub fn discord_rpc_thread(client_id: u64) {
+    let mut drpc = Client::new(client_id);
+    drpc.start();
+    drpc.set_activity(|act| act.state("Invoicer"))
+        .expect("Failed to set activity");
+    
+}
 
 
 
 
 pub fn entry() {
+    //let (tx ,rx) = mpsc::channel::<Option<Activity>>();
+    let client_id = "";
+    if client_id.is_empty() {
+        panic!("Please set the client id in the code");
+    }
+    thread::spawn(move || {
+        discord_rpc_thread(client_id.parse().unwrap());
+    });
+    
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(900.0, 700.0)),
         ..Default::default()
