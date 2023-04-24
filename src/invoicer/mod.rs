@@ -351,9 +351,10 @@ pub fn render_service(
     //Always a constant
     let ddv_x = Mm(165.0);
     //Formated text add a percentage sign to the service_tax string
+    if invoice.invoice.invoice_tax > 0.0 {
     let formated_vat = format!("{}%", invoice.invoice.invoice_tax);
-
     layer.use_text(formated_vat, 9.0, ddv_x, y, font);
+    }
     //Render service price
     //Always a constant
     let price_x = Mm(145.0);
@@ -510,7 +511,7 @@ pub fn render_partner_header(
 ) {
     //Partner name
     layer.use_text(
-        format!("{}", racun.invoice.company.company_name),
+        format!("{}", racun.invoice.partner.partner_name),
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(233.0),
