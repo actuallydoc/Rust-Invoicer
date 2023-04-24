@@ -29,6 +29,7 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 - [✔] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
 - [✔] No tax template which removes the all tax parts from the template
 #### Upcoming features.
+- [❌] Custom user company , partner , services so you can select them instead of typing everything
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
 - [❌] Hopefully i can implement to convert PDF into JPG and save it to 

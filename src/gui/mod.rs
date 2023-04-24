@@ -6,36 +6,19 @@ use eframe::egui;
 use egui::{widgets, Color32, TextureHandle, Align, Layout, Label};
 use egui::{RichText, Vec2};
 use fs::File;
+use std::fmt::{format, Display, Formatter};
+use std::time::Duration;
 use std::{env, thread};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc::{self, Sender, channel, Receiver};
 //Consts
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
-pub struct Activity {
-    state: String,
-    details: String,
-    large_image_key: Option<String>,
-    large_image_text: Option<String>,
-    small_image_key: Option<String>,
-    small_image_text: Option<String>,
-}
 
-impl Activity {
-    pub fn new() -> Self {
-        Self {
-            state: String::new(),
-            details: String::new(),
-            large_image_key: None,
-            large_image_text: None,
-            small_image_key: None,
-            small_image_text: None,
-        }
-    }
-}
+
 
 struct GuiApp {
     allowed_to_close: bool,
@@ -52,19 +35,19 @@ struct GuiApp {
     clicked_invoice: Racun,
     latest_invoice: Racun,
     add_service: bool,
-    
+    rpc_client: Client,
+    presence_data: DiscordPresenceState,
+    client_id: u64,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
     fn parse_jsons(&mut self);
-    fn new() -> Self;
+    fn new(client_id: u64) -> Self;
 }
-
 impl Data for GuiApp {
-    fn new() -> Self {
+    fn new(client_id: u64) -> Self {
         let mut this = Self {
-        
             allowed_to_close: false,
             clicked_pdf_path: PathBuf::new(),
             show_confirmation_dialog: false,
@@ -72,30 +55,56 @@ impl Data for GuiApp {
             invoice_paths: Vec::new(),
             json_data: Vec::new(),
             delete_invoice: false,
-            // delete_invoice_path: PathBuf::new(),
+            rpc_client: Client::new(client_id),
             texture: None,
             refresh: false,    
             create: false,
             edit: false,
             latest_invoice: Racun::default(),
             add_service: false,
-            clicked_invoice: Racun::default()
+            clicked_invoice: Racun::default(),
+            client_id,
+            presence_data: DiscordPresenceState {
+                details: "0".to_string(),
+                status: Status::Connecting,
+            }
         };
         if let Some(invoices) = this.get_invoices() {
             this.invoice_paths = invoices;
         }else {
             this.invoice_paths = Vec::new();
         }
-       
+        if client_id < 0 {
+            this.presence_data.status = Status::Disconnected;
+        }else {
+        this.rpc_client.start();
+        println!("Client ID: {}", client_id);
+        println!("Setting the activity to: \"{}\" and \"{}\"", this.presence_data.details, this.presence_data.state());
+        match this.rpc_client.set_activity(|activity|{
+            activity
+            .state(format!("Total invoices: {}",this.json_data.iter().len().to_string()))
+            .details("Generating invoices...")
+            .assets(|assets|{
+                assets.large_image("logo")
+            })
+        }) {
+            Ok(_) => {
+                println!("Successfully set the activity");
+                this.presence_data.status = Status::Connected;
+            }
+            Err(err) => {
+                println!("Could not set the activity, error code: {}", err);
+                this.presence_data.status = Status::Disconnected;
+            }
+        }
+        }
         this.parse_jsons();
         this
     }
-    
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>> {
         let mut path = env::current_dir().unwrap();
         let invoice_folder = PathBuf::from("invoices");
         path.push(&invoice_folder);
-    
         match fs::read_dir(path) {
             Ok(folders) => {
                 let folders: Vec<DirEntry> = folders
@@ -164,7 +173,6 @@ impl eframe::App for GuiApp  {
             }
 
         }
-      
         egui::CentralPanel::default().show(ctx, |ui| {
             self.refresh = true;
             egui::ScrollArea::new([false, false]).show(ui, |ui| {
@@ -180,7 +188,6 @@ impl eframe::App for GuiApp  {
                 }
                 ui.add_space(PADDING);
                 ui.add_space(PADDING);
-                //Debug purpose ui.colored_label(WHITE, self.clicked_pdf_path.to_string_lossy());
                 ui.add_space(10.0);
                 egui::Grid::new("invoice_grid").show(ui, |ui| {
                     if self.json_data.iter().count() == 0 {
@@ -317,12 +324,13 @@ impl eframe::App for GuiApp  {
                     }
                 });
                 ui.vertical(|ui| {
-                   
                         ui.add_space(150.0);
                         ui.with_layout(Layout::left_to_right(egui::Align::BOTTOM), |ui| {
                             ui.horizontal(|ui| {
                                 ui.label("Total invoices:");
                                 ui.label(self.json_data.iter().count().to_string());
+                                ui.add_space(50.00);
+                                ui.label(format!("Discord: {}",self.presence_data.state()));
                             });
                         });
                 });
@@ -330,7 +338,6 @@ impl eframe::App for GuiApp  {
         });
         if self.edit {
             egui::Window::new("Edit invoice!").resizable(true).show(ctx,|ui|{
-               
                 ui.horizontal(|ui|{
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.vertical(|ui| {
@@ -695,25 +702,31 @@ self.show_image = false;
         }
     }
 }
-pub fn discord_rpc_thread(client_id: u64) {
-    let mut drpc = Client::new(client_id);
-    drpc.start();
-    drpc.set_activity(|act| act.state("Invoicer"))
-        .expect("Failed to set activity");
-    
+
+#[derive(Clone, Debug)]
+pub enum Status{
+    Connected,
+    Disconnected,
+    Connecting,
+}
+#[derive(Clone, Debug)]
+pub struct DiscordPresenceState {
+    details: String,
+    status: Status,
+}
+impl DiscordPresenceState {
+    fn state(&self)-> String {
+        match self.status {
+            Status::Connected => "Connected".to_string(),
+            Status::Disconnected => "Disconnected".to_string(),
+            Status::Connecting => "Connecting".to_string(),
+        }
+    }
 }
 
+
 pub fn entry() {
-    //let (tx ,rx) = mpsc::channel::<Option<Activity>>();
-    let client_id = "";
-    if !client_id.is_empty() {
-        thread::spawn(move || {
-            discord_rpc_thread(client_id.parse().unwrap());
-        });
-       
-    }else {
-       
-    }
+    
     //*!TODO This doesnt work yet the icon gets loaded but not shown also only works on windows */
     let icon = IconData {
         rgba: include_bytes!("../../assets/logo.jpg").to_vec(),
@@ -725,7 +738,8 @@ pub fn entry() {
         icon_data: Some(icon),
         ..Default::default()
     };
-    let app = GuiApp::new();
+    let client_id = 123;
+    let app = GuiApp::new(client_id);
 
     eframe::run_native(
         "Invoice GUI",
