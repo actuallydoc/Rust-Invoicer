@@ -628,7 +628,7 @@ impl eframe::App for GuiApp  {
                                 Ok(_) => {
                                     // println!("Invoice generated");
                                     // println!("Invoice: {:#?}", invoice)
-                                    
+                                    self.create = false;
                                 }
                                 Err(err) => {
                                     println!("Error: {}", err);
@@ -690,76 +690,7 @@ self.show_image = false;
 }
 
 
-// fn make_fake_invoice()-> Racun {
-//     let mut rng = rand::thread_rng();
-//     let racun1 = Racun {
-//         invoice: Invoice {
-//             invoice_number: rng.gen_range(1..200).to_string(),
-//             invoice_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-//             due_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-//             service_date: format!("{}/{}/{}", rng.gen_range(1..31), rng.gen_range(1..12), rng.gen_range(2020..2021)),
-//             invoice_currency: "EUR".to_string(),
-//             company: Company {
-//                 company_address: "Company address".to_string(),
-//                 company_name: "Company name".to_string(),
-//                 company_bankname: "Company bank name".to_string(),
-//                 company_business_registered_at: "Company business registered at".to_string(),
-//                 company_currency: "EUR".to_string(),
-//                 company_iban: "Company iban".to_string(),
-//                 company_phone: "Company phone".to_string(),
-//                 company_postal_code: "Company postal code".to_string(),
-//                 company_registration_number: "Company registration number".to_string(),
-//                 company_vat_rate: 22.0,
-//                 company_signature: "Company signature".to_string(),
-//                 company_swift: "Company swift".to_string(),
-//                 company_vat_id: "Company vat id".to_string(),
-//             },
-//             invoice_location: "Slovenia".to_string(),
-//             partner: Partner {
-//                 partner_address: "Partner address".to_string(),
-//                 partner_name: "Partner name".to_string(),
-//                 partner_postal_code: "Partner postal code".to_string(),
-//                 partner_vat_id: "Partner vat id".to_string(),
 
-//             },
-//             invoice_tax: 22.0,
-//             invoice_reference: "123456789".to_string(),
-//             created_by: "Invoice generator".to_string(),
-//             services: vec![Service {
-                
-//                 service_name: "Service name".to_string(),
-//                 service_price: 15.30,
-//                 service_quantity: 1,
-                
-
-//             }, Service {
-                
-//                 service_name: "Service name".to_string(),
-//                 service_price: 15.30,
-//                 service_quantity: 1,
-                
-
-//             },Service {
-                
-//                 service_name: "Service name".to_string(),
-//                 service_price: 15.30,
-//                 service_quantity: 1,
-                
-
-//             }],
-//             status: crate::invoicer::PaymentStatus::UNPAID,
-            
-//         },
-//         config: InvoiceStructure {
-//             font_sizes: FontSizes {
-//                 small:9.0,
-//                 medium:14.0,
-//                 large:16.0,
-//             }
-//         }
-//     };
-//     racun1
-// }
 
 
 pub fn discord_rpc_thread(client_id: u64) {
@@ -773,13 +704,15 @@ pub fn discord_rpc_thread(client_id: u64) {
 pub fn entry() {
     //let (tx ,rx) = mpsc::channel::<Option<Activity>>();
     let client_id = "";
-    if client_id.is_empty() {
-        panic!("Please set the client id in the code");
+    if !client_id.is_empty() {
+        thread::spawn(move || {
+            discord_rpc_thread(client_id.parse().unwrap());
+        });
+       
+    }else {
+        println!("No client id provided");
     }
-    thread::spawn(move || {
-        discord_rpc_thread(client_id.parse().unwrap());
-    });
-    
+   
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(900.0, 700.0)),
         ..Default::default()

@@ -268,57 +268,58 @@ pub fn render_summary_table(
     total_price_with_tax: f64,
 ) -> Mm {
     let y = y - Mm(15.0);
-    make_line(&layer, Mm(13.0), y, Mm(197.0), y);
-
     //Adding text "Davčna stopnja", "Osnova za DDV", "DDV", "Znesek z DDV"
     let mut y = y - Mm(3.0);
     let tax_x = Mm(14.0);
     let base_tax_x = Mm(70.0);
     let tax_difference_x = Mm(125.0);
     let total_price_x = Mm(150.0);
-    layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
+    if racun.invoice.invoice_tax > 0.0 {
+        make_line(&layer, Mm(13.0), y, Mm(197.0), y);
+        layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
 
-    layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
-
-    layer.use_text("DDV", 9.0, tax_difference_x, y, bold_font);
-
-    layer.use_text("Znesek z DDV", 9.0, total_price_x, y, bold_font);
-    y = y - Mm(4.0);
-    layer.use_text(
-        format!("DDV {}%", racun.invoice.invoice_tax),
-        9.0,
-        tax_x,
-        y,
-        standard_font,
-    );
-    layer.use_text(
-        format!("{:.2}{}", total_price, racun.invoice.invoice_currency),
-        9.0,
-        base_tax_x,
-        y,
-        standard_font,
-    );
-
-    layer.use_text(
-        format!(
-            "{:.2?}{}",
-            total_price_with_tax, racun.invoice.invoice_currency
-        ),
-        9.0,
-        total_price_x,
-        y,
-        standard_font,
-    );
-    layer.use_text(
-        format!(
-            "{:.2}{}",
-            calculated_tax_difference, racun.invoice.invoice_currency
-        ),
-        9.0,
-        tax_difference_x,
-        y,
-        standard_font,
-    );
+        layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
+    
+        layer.use_text("DDV", 9.0, tax_difference_x, y, bold_font);
+    
+        layer.use_text("Znesek z DDV", 9.0, total_price_x, y, bold_font);
+        y = y - Mm(4.0);
+        layer.use_text(
+            format!("DDV {}%", racun.invoice.invoice_tax),
+            9.0,
+            tax_x,
+            y,
+            standard_font,
+        );
+        layer.use_text(
+            format!("{:.2}{}", total_price, racun.invoice.invoice_currency),
+            9.0,
+            base_tax_x,
+            y,
+            standard_font,
+        );
+    
+        layer.use_text(
+            format!(
+                "{:.2?}{}",
+                total_price_with_tax, racun.invoice.invoice_currency
+            ),
+            9.0,
+            total_price_x,
+            y,
+            standard_font,
+        );
+        layer.use_text(
+            format!(
+                "{:.2}{}",
+                calculated_tax_difference, racun.invoice.invoice_currency
+            ),
+            9.0,
+            tax_difference_x,
+            y,
+            standard_font,
+        );
+    }
 
     y
 }
@@ -492,8 +493,9 @@ pub fn render_table_header(layer: &PdfLayerReference, racun: &Racun, bold: &Indi
 
     //DDV
     x += Mm(22.0);
-    layer.use_text("DDV", racun.config.font_sizes.small, x, y, &bold);
-
+    if racun.invoice.invoice_tax > 0.0 {
+        layer.use_text("DDV", racun.config.font_sizes.small, x, y, &bold);
+    }
     //Znesek
     x += Mm(15.0);
     layer.use_text("Znesek", racun.config.font_sizes.small, x, y, &bold);
