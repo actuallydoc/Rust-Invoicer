@@ -395,7 +395,7 @@ pub fn render_table_contents(
     let mut total_price = 0.0;
     //Render services with the lines above
     for service in racun.invoice.services.iter() {
-        println!("{} {} {}", service.service_name, service.service_price, service.service_quantity);
+        
         total_price += service.service_price * (service.service_quantity as f64);
         let (new_x, new_y) = render_service(x, y, layer, standard_font, racun,service);
         x = new_x;
@@ -464,9 +464,7 @@ pub fn render_table_end(
         y,
         font,
     );
-    println!("Price with tax: {}", total_price_with_tax);
-    println!("Price without tax: {}", total_price);
-    println!("Tax difference: {}", calculated_tax_difference);
+
     //Decrease the Y by a couple of Mm
     let y = y - Mm(1.0);
     make_line(layer, Mm(165.0), y, Mm(195.0), y);
@@ -719,16 +717,15 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
                 racun.invoice.invoice_number.parse::<i32>().unwrap(),
             ) {
                 Ok(_) => {
-                    println!("Invoice image saved ✔");
-                    println!("Invoice saved {}", jpg_file_path.to_str().unwrap());
+                  
                     save_to_json(&racun);
-                    println!("Invoice json saved ✔");
+                  
                 }
                 Err(e) => println!("Error saving invoice image: {}", e),
             }
         }
         None => {
-            println!("Error saving invoice");
+           
             //Return an option of dyn error
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -756,7 +753,7 @@ pub fn save_to_json(racun: &Racun) {
         //Write the json string to the file
         let mut file = File::create(invoice_json).unwrap();
         file.write_all(json.as_bytes()).unwrap();
-        println!("✔");
+       
     } else {
         panic!("The invoice number directory doesn't exist");
     }
@@ -770,9 +767,8 @@ pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf
     let invoice_number_dir = invoice_dir.join(racun.invoice.invoice_number.to_string());
 
     if !invoice_dir.exists() {
-        // println!("Creating invoice directory");
-        fs::create_dir(invoice_dir).expect("❌");
-        print!("Created invoice directory ✔");
+        fs::create_dir(invoice_dir).expect("Couldn't create directory(It might already exist?)");
+        
     }
     if invoice_number_dir.exists() {
         None
@@ -782,7 +778,7 @@ pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf
             invoice_number_dir.join(format!("racun {}.pdf", racun.invoice.invoice_number));
         doc.save(&mut BufWriter::new(File::create(&pdf_path).unwrap()))
             .expect("Couldn't save pdf file");
-        println!("✔");
+       
         Some((pdf_path, invoice_number_dir))
     }
 }

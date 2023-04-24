@@ -1,9 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use crate::invoicer::{Racun, init, Service};
 use discord_rpc_client::*;
-use eframe;
+use eframe::{self, IconData};
 use eframe::egui;
-use egui::{widgets, Color32, TextureHandle, Align};
+use egui::{widgets, Color32, TextureHandle, Align, Layout, Label};
 use egui::{RichText, Vec2};
 use fs::File;
 use std::{env, thread};
@@ -105,7 +105,6 @@ impl Data for GuiApp {
                 Some(folders)
             }
             Err(_) => {
-                // println!("Could not find the invoices folder");
                 fs::create_dir(invoice_folder).unwrap();
                 None
             }
@@ -122,15 +121,13 @@ impl Data for GuiApp {
             let mut file_content = match File::open(file_path.to_str().unwrap().to_string()) {
                 Ok(file) => file,
                 Err(_) => {
-                    // println!("Could not parse the json file.There could be a problem with the json file or the file could be missing.");
                     continue;
-            
                 }, //*!TODO This panics alot if the user clicks refresh too fast or if the dir doesnt have the json (idk how tho) *//
             };
             let mut contents = String::new();
             match file_content.read_to_string(&mut contents) {
                 Ok(_) => {
-                    //println!("File contents: {}", contents);
+                
                     let invoice: Racun = match serde_json::from_str(&contents) {
                         Ok(invoice) => invoice,
                         Err(err) => panic!("Could not deserialize the file, error code: {}", err),
@@ -248,11 +245,6 @@ impl eframe::App for GuiApp  {
                                                                 file.path().extension()
                                                             {
                                                                 if extension == "jpg" {
-                                                                    println!(
-                                                                        "File name: {}",
-                                                                        file.path()
-                                                                            .to_string_lossy()
-                                                                    );
                                                                     //Get the image from the path and render it
                                                                     let image = image::io::Reader::open(file.path()).unwrap().decode().unwrap();
                                                                     let size = [image.width() as _, image.height() as _];
@@ -281,7 +273,7 @@ impl eframe::App for GuiApp  {
                                                     }
                                                 }
                                             } else {
-                                                println!("Could not get the file name");
+                                               
                                             }
 
                                             //Make the self.clicked_pdf_path -> Image on the GUI
@@ -324,10 +316,21 @@ impl eframe::App for GuiApp  {
 
                     }
                 });
+                ui.vertical(|ui| {
+                   
+                        ui.add_space(150.0);
+                        ui.with_layout(Layout::left_to_right(egui::Align::BOTTOM), |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label("Total invoices:");
+                                ui.label(self.json_data.iter().count().to_string());
+                            });
+                        });
+                });
             });
         });
         if self.edit {
             egui::Window::new("Edit invoice!").resizable(true).show(ctx,|ui|{
+               
                 ui.horizontal(|ui|{
                     ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                         ui.vertical(|ui| {
@@ -397,7 +400,9 @@ impl eframe::App for GuiApp  {
                                 "Payment amount without vat. Vat is calculated on the end",
                             );
                         });
+                       
                     }); 
+            
                     if self.add_service {
                         egui::Window::new("Add a service")
                             .collapsible(false)
@@ -477,8 +482,9 @@ impl eframe::App for GuiApp  {
                 }
             
             }); 
+            
         }
-
+        
         if self.create {
             egui::Window::new("Create invoice!").resizable(true).show(ctx,|ui|{
                 ui.horizontal(|ui|{
@@ -628,12 +634,11 @@ impl eframe::App for GuiApp  {
                             let mut state = false;
                             match init(&invoice) {
                                 Ok(_) => {
-                                    // println!("Invoice generated");
-                                    // println!("Invoice: {:#?}", invoice)
+                                   
                                     state = true;
                                 }
                                 Err(err) => {
-                                    println!("Error: {}", err);
+                                   
                                     state = false;
                                 }
                             };
@@ -647,14 +652,11 @@ impl eframe::App for GuiApp  {
                 if ui.button("Close").clicked(){
                     self.create = false
                 }
-            
+             
             }); 
         }
-       
         if self.show_image {
-                // println!("Show image is true");
             if self.texture.is_some() {   
-                // println!("Image is not none");
                 if let Some(texture) = &mut self.texture {
                     egui::Window::new("Image").collapsible(true).resizable(true).default_size(Vec2::new(1000.0, 1000.0)).show(ctx, |ui| {
                         egui::ScrollArea::new([true, true]).show(ui, |ui| {
@@ -665,10 +667,9 @@ impl eframe::App for GuiApp  {
                         }
                     });
                     });
-                
                 }   
             }  else {
-                // println!("Image is none");
+                
                 self.texture = None;
             }   
 } else {
@@ -711,11 +712,17 @@ pub fn entry() {
         });
        
     }else {
-        println!("No client id provided");
+       
     }
-   
+    //*!TODO This doesnt work yet the icon gets loaded but not shown also only works on windows */
+    let icon = IconData {
+        rgba: include_bytes!("../../assets/logo.jpg").to_vec(),
+        width: 512,
+        height: 512,
+    };
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(900.0, 700.0)),
+        icon_data: Some(icon),
         ..Default::default()
     };
     let app = GuiApp::new();

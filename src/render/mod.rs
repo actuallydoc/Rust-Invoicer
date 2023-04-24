@@ -41,6 +41,6 @@ pub fn export_pdf_to_jpegs(
             ) // ... and saves it to a file.
             .map_err(|_| PdfiumError::ImageError)?;
     }
-    println!("Done✔✔✔✔");
+   
     Ok(())
 }

@@ -18,7 +18,7 @@ Step 2: Put fonts inside "/fonts" and name them font.ttf and font_bold.ttf (Both
 Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 ```
 #### Features
-- [❓] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects)
+- [✔] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects)
 - [✔] GUI
 - [✔] Invoice generator
 - [✔] Fixed invoice template with table support
@@ -35,9 +35,9 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
 
 # Showcase
-## Outdated pictures
-![alt text](https://i.imgur.com/pwrZ4Xj.png "PDF Viewer")
 
+![alt text](https://i.imgur.com/pwrZ4Xj.png "PDF Viewer")
+![alt text](https://i.imgur.com/No2S5RC.png "Invoice Creation") 
 ![alt text](https://i.imgur.com/zxizbv3.png "Logo Title Text 1")
 
 # Invoice template
