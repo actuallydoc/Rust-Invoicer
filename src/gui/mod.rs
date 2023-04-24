@@ -623,18 +623,25 @@ impl eframe::App for GuiApp  {
                 });
                 if ui.button("Create").clicked(){
                         let invoice = self.latest_invoice.clone();
-                        thread::spawn(move || {
+                        let handle = thread::spawn(move || {
+                            let mut state = false;
                             match init(&invoice) {
                                 Ok(_) => {
                                     // println!("Invoice generated");
                                     // println!("Invoice: {:#?}", invoice)
-                                    self.create = false;
+                                    state = true;
                                 }
                                 Err(err) => {
                                     println!("Error: {}", err);
+                                    state = false;
                                 }
                             };
+                            state
                         });
+                        let result = handle.join().unwrap();
+                        if result {
+                            self.create = false;
+                        }
                     }
                 if ui.button("Close").clicked(){
                     self.create = false
