@@ -762,8 +762,6 @@ self.show_image = false;
 // }
 
 
-
-
 pub fn discord_rpc_thread(client_id: u64) {
     let mut drpc = Client::new(client_id);
     drpc.start();
@@ -771,9 +769,6 @@ pub fn discord_rpc_thread(client_id: u64) {
         .expect("Failed to set activity");
     
 }
-
-
-
 
 pub fn entry() {
     //let (tx ,rx) = mpsc::channel::<Option<Activity>>();
