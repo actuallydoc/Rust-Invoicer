@@ -653,8 +653,7 @@ impl eframe::App for GuiApp  {
        
         if self.show_image {
                 // println!("Show image is true");
-            if self.texture.is_some() {
-               
+            if self.texture.is_some() {   
                 // println!("Image is not none");
                 if let Some(texture) = &mut self.texture {
                     egui::Window::new("Image").collapsible(true).resizable(true).default_size(Vec2::new(1000.0, 1000.0)).show(ctx, |ui| {
@@ -686,7 +685,6 @@ self.show_image = false;
                         if ui.button("Cancel").clicked() {
                             self.show_confirmation_dialog = false;
                         }
-
                         if ui.button("Yes!").clicked() {
                             self.allowed_to_close = true;
                             frame.close();
@@ -696,11 +694,6 @@ self.show_image = false;
         }
     }
 }
-
-
-
-
-
 pub fn discord_rpc_thread(client_id: u64) {
     let mut drpc = Client::new(client_id);
     drpc.start();

@@ -18,7 +18,7 @@ Step 2: Put fonts inside "/fonts" and name them font.ttf and font_bold.ttf (Both
 Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 ```
 #### Features
-
+- [❓] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects)
 - [✔] GUI
 - [✔] Invoice generator
 - [✔] Fixed invoice template with table support
@@ -27,10 +27,10 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 - [✔] Deleting PDF's
 - [✔] Only Slovenian language support(FOR NOW)
 - [✔] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
+- [✔] No tax template which removes the all tax parts from the template
 #### Upcoming features.
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
-- [❌] No tax template which removes the all tax parts from the template
 - [❌] Hopefully i can implement to convert PDF into JPG and save it to 
 memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
 
