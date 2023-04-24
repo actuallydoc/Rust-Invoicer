@@ -38,12 +38,14 @@ struct GuiApp {
     rpc_client: Client,
     presence_data: DiscordPresenceState,
     client_id: u64,
+    change_presence: bool
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
     fn parse_jsons(&mut self);
     fn new(client_id: u64) -> Self;
+    fn set_presence_activity(&mut self);
 }
 impl Data for GuiApp {
     fn new(client_id: u64) -> Self {
@@ -67,7 +69,9 @@ impl Data for GuiApp {
             presence_data: DiscordPresenceState {
                 details: "0".to_string(),
                 status: Status::Connecting,
-            }
+                tab: TabLocation::Main
+            },
+            change_presence: false
         };
         if let Some(invoices) = this.get_invoices() {
             this.invoice_paths = invoices;
@@ -76,6 +80,7 @@ impl Data for GuiApp {
         }
         if client_id < 0 {
             this.presence_data.status = Status::Disconnected;
+            println!("Client ID is invalid, please enter a valid client ID");
         }else {
         this.rpc_client.start();
         println!("Client ID: {}", client_id);
@@ -83,7 +88,7 @@ impl Data for GuiApp {
         match this.rpc_client.set_activity(|activity|{
             activity
             .state(format!("Total invoices: {}",this.json_data.iter().len().to_string()))
-            .details("Generating invoices...")
+            .details(format!("TAB: {}" ,this.presence_data.get_tab()))
             .assets(|assets|{
                 assets.large_image("logo")
             })
@@ -118,6 +123,25 @@ impl Data for GuiApp {
                 None
             }
     
+        }
+    }
+    fn set_presence_activity(&mut self) {
+        match self.rpc_client.set_activity(|activity|{
+            activity
+            .state(format!("Total invoices: {}",self.json_data.iter().len().to_string()))
+            .details(format!("TAB: {}" ,self.presence_data.get_tab()))
+            .assets(|assets|{
+                assets.large_image("logo")
+            })
+        }) {
+            Ok(_) => {
+                println!("Successfully set the activity");
+                self.presence_data.status = Status::Connected;
+            }
+            Err(err) => {
+                println!("Could not set the activity, error code: {}", err);
+                self.presence_data.status = Status::Disconnected;
+            }
         }
     }
     fn parse_jsons(&mut self) {
@@ -161,6 +185,10 @@ impl eframe::App for GuiApp  {
     }
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.change_presence {
+            self.set_presence_activity();
+            self.change_presence = false;
+        }
         if self.refresh {
             if self.get_invoices().is_some() {
                 self.invoice_paths = self.get_invoices().unwrap();
@@ -183,6 +211,10 @@ impl eframe::App for GuiApp  {
                     CYAN,
                     RichText::new(format!("This is a simple invoice manager written in Rust")),
                 );
+                if ui.button("Change prsence").clicked() {
+
+                    self.change_presence = true;
+                }
                 if ui.button(RichText::new("Create").color(Color32::GREEN)).clicked() {
                     self.create = true;
                 }
@@ -713,6 +745,14 @@ pub enum Status{
 pub struct DiscordPresenceState {
     details: String,
     status: Status,
+    tab: TabLocation,
+}
+#[derive(Clone, Debug)]
+pub enum TabLocation {
+    Main, 
+    Edit,
+    Create,
+    PdfViewer,
 }
 impl DiscordPresenceState {
     fn state(&self)-> String {
@@ -720,6 +760,14 @@ impl DiscordPresenceState {
             Status::Connected => "Connected".to_string(),
             Status::Disconnected => "Disconnected".to_string(),
             Status::Connecting => "Connecting".to_string(),
+        }
+    }
+    fn get_tab(&self) -> String {
+        match self.tab {
+            TabLocation::Main => "Main".to_string(),
+            TabLocation::Edit => "Edit".to_string(),
+            TabLocation::Create => "Create".to_string(),
+            TabLocation::PdfViewer => "PDF".to_string(),
         }
     }
 }
@@ -738,7 +786,7 @@ pub fn entry() {
         icon_data: Some(icon),
         ..Default::default()
     };
-    let client_id = 123;
+    let client_id = 1082013840323129434;
     let app = GuiApp::new(client_id);
 
     eframe::run_native(
