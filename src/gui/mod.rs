@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::{Racun, init, Service};
+use crate::invoicer::{Racun, init, Service, Invoice};
 use discord_rpc_client::*;
 use eframe::{self, IconData};
 use eframe::egui;
@@ -45,6 +45,7 @@ trait Data {
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
     fn parse_jsons(&mut self);
     fn new(client_id: u64) -> Self;
+    fn generate_pdf(&mut self, invoice: Racun)-> bool;
     // fn set_presence_activity(&mut self);
 }
 impl Data for GuiApp {
@@ -125,7 +126,26 @@ impl Data for GuiApp {
     
         }
     }
+    fn generate_pdf(&mut self, invoice: Racun)-> bool {
+        let handle = thread::spawn(move || {
+            let mut state = false;
+            match init(&invoice) {
+                Ok(_) => {
     
+                    state = true;
+                }
+                Err(err) => {
+                   
+                    state = false;
+                }
+            };
+            state
+        });
+        let result = handle.join().unwrap();
+        result
+    }
+
+            
     fn parse_jsons(&mut self) {
         let paths = self.get_invoices();
         //Make a vector of invoices
@@ -167,10 +187,6 @@ impl eframe::App for GuiApp  {
     }
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        // if self.change_presence {
-             // self.set_presence_activity();
-        //     self.change_presence = false;
-        // }
         if self.refresh {
             if self.get_invoices().is_some() {
                 self.invoice_paths = self.get_invoices().unwrap();
@@ -492,6 +508,24 @@ impl eframe::App for GuiApp  {
                 });
                 if ui.button("Edit").clicked(){
                        //*!!TODO Delete all the previous data from the folder and replace it with the new one*/
+                        println!("Invoice fields: {:#?}", self.clicked_invoice.invoice);
+                        //The invoice is getting modified in memory already when you change a field now you just have to delete the folder and create a new one with the new data
+                        for invoice_path in &self.invoice_paths {
+                            if invoice_path
+                                .path()
+                                .ends_with(&self.clicked_invoice.invoice.invoice_number.to_string())
+                            {
+                             //Delete the invoice from the json file
+                                match fs::remove_dir_all(invoice_path.path()) {
+                                    Ok(_) => self.refresh = true ,
+                                    Err(_) => (),
+                            
+                                }
+                               
+                            }
+
+                        }
+                        self.generate_pdf(self.clicked_invoice.clone());
                         self.edit = false;
                     }
                 if ui.button("Close").clicked(){
@@ -646,22 +680,7 @@ impl eframe::App for GuiApp  {
                      
                     });
                 if ui.button("Create").clicked(){
-                        let invoice = self.latest_invoice.clone();
-                        let handle = thread::spawn(move || {
-                            let mut state = false;
-                            match init(&invoice) {
-                                Ok(_) => {
-                                   
-                                    state = true;
-                                }
-                                Err(err) => {
-                                   
-                                    state = false;
-                                }
-                            };
-                            state
-                        });
-                        let result = handle.join().unwrap();
+                        let result = self.generate_pdf(self.latest_invoice.clone());
                         if result {
                             self.create = false;
                         }
