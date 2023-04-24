@@ -222,7 +222,7 @@ pub fn render_payment_footer(
     let base_x = Mm(15.0);
     layer.use_text(
         format!(
-            "Sklic za številko: {}00 {:04}-{}",
+            "Sklic za številko: {}00-{:04}-{}",
             racun.invoice.invoice_reference, racun.invoice.invoice_number, current_date
         ),
         9.0,

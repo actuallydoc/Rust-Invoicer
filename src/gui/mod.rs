@@ -398,52 +398,6 @@ impl eframe::App for GuiApp  {
                             );
                         });
                     }); 
-                    ui.vertical(|ui| {
-                        let mut delete = None;
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            ui.vertical_centered(|ui| {
-                                ui.heading("Services");
-                                for (pos, service) in self.clicked_invoice.invoice.services.iter_mut().enumerate() {
-                                    ui.horizontal(|ui| {
-                                        ui.add(egui::TextEdit::multiline(&mut service.service_name))
-                                            .on_hover_text("Service description");
-                                        ui.add(
-                                            egui::Slider::new(&mut service.service_price, 0.0..=10000.0)
-                                                .text("Amount to pay")
-                                                .max_decimals(3),
-                                        )
-                                        .on_hover_text(
-                                            "Payment amount without vat. Vat is calculated on the end",
-                                        );
-                                        ui.add(
-                                            egui::Slider::new(&mut service.service_quantity, 0..=100)
-                                                .text("Quantity")
-                                                .max_decimals(3),
-                                        )
-                                        .on_hover_text(
-                                            "Payment amount without vat. Vat is calculated on the end",
-                                        );
-                                        if ui
-                                        .add(egui::Button::new("Delete"))
-                                        .on_hover_text("Delete a service. THIS CANNOT BE UNDONE!")
-                                        .clicked()
-                                             {
-                                        delete = Some(pos);
-                                            };
-                                     });
-                                     
-                                }
-                                if let Some(pos) = delete {
-                                    
-                                    self.clicked_invoice.invoice.services.remove(pos);
-                                }
-                                if ui.button("Add service").clicked() {
-                                    self.add_service = true;
-                                }
-                            });
-                        });
-                     
-                    });
                     if self.add_service {
                         egui::Window::new("Add a service")
                             .collapsible(false)
@@ -467,6 +421,52 @@ impl eframe::App for GuiApp  {
                             });
                     }
                     
+                });
+                ui.vertical(|ui| {
+                    let mut delete = None;
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.heading("Services");
+                            for (pos, service) in self.clicked_invoice.invoice.services.iter_mut().enumerate() {
+                                ui.horizontal(|ui| {
+                                    ui.add(egui::TextEdit::multiline(&mut service.service_name))
+                                        .on_hover_text("Service description");
+                                    ui.add(
+                                        egui::Slider::new(&mut service.service_price, 0.0..=10000.0)
+                                            .text("Amount to pay")
+                                            .max_decimals(3),
+                                    )
+                                    .on_hover_text(
+                                        "Payment amount without vat. Vat is calculated on the end",
+                                    );
+                                    ui.add(
+                                        egui::Slider::new(&mut service.service_quantity, 0..=100)
+                                            .text("Quantity")
+                                            .max_decimals(3),
+                                    )
+                                    .on_hover_text(
+                                        "Payment amount without vat. Vat is calculated on the end",
+                                    );
+                                    if ui
+                                    .add(egui::Button::new("Delete"))
+                                    .on_hover_text("Delete a service. THIS CANNOT BE UNDONE!")
+                                    .clicked()
+                                         {
+                                    delete = Some(pos);
+                                        };
+                                 });
+                                 
+                            }
+                            if let Some(pos) = delete {
+                                
+                                self.clicked_invoice.invoice.services.remove(pos);
+                            }
+                            if ui.button("Add service").clicked() {
+                                self.add_service = true;
+                            }
+                        });
+                    });
+                 
                 });
                 if ui.button("Edit").clicked(){
                        //*!!TODO Delete all the previous data from the folder and replace it with the new one*/
@@ -551,7 +551,32 @@ impl eframe::App for GuiApp  {
                             );
                         });
                     }); 
-                    ui.vertical(|ui| {
+                    
+                    if self.add_service {
+                        egui::Window::new("Add a service")
+                            .collapsible(false)
+                            .resizable(false)
+                            .min_width(500.0)
+                            .min_height(500.0)
+                            .show(ctx, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("What kind of service do you want to add?");
+                                    if ui
+                                        .button("Create a blank service!")
+                                        .on_hover_text("Create a blank service with no data")
+                                        .clicked()
+                                    {
+                                        let new_service = Service::default("Service 1", 1, 0.0);
+                                        self.latest_invoice.invoice.services.push(new_service);
+                                        // self.service_count += 1;
+                                        self.add_service = false;
+                                    }
+                                })
+                            });
+                    }
+                    
+                });
+                ui.vertical(|ui| {
                         let mut delete = None;
                         egui::ScrollArea::vertical().show(ui, |ui| {
                             ui.vertical_centered(|ui| {
@@ -597,30 +622,6 @@ impl eframe::App for GuiApp  {
                         });
                      
                     });
-                    if self.add_service {
-                        egui::Window::new("Add a service")
-                            .collapsible(false)
-                            .resizable(false)
-                            .min_width(500.0)
-                            .min_height(500.0)
-                            .show(ctx, |ui| {
-                                ui.horizontal(|ui| {
-                                    ui.label("What kind of service do you want to add?");
-                                    if ui
-                                        .button("Create a blank service!")
-                                        .on_hover_text("Create a blank service with no data")
-                                        .clicked()
-                                    {
-                                        let new_service = Service::default("Service 1", 1, 0.0);
-                                        self.latest_invoice.invoice.services.push(new_service);
-                                        // self.service_count += 1;
-                                        self.add_service = false;
-                                    }
-                                })
-                            });
-                    }
-                    
-                });
                 if ui.button("Create").clicked(){
                         let invoice = self.latest_invoice.clone();
                         let handle = thread::spawn(move || {
