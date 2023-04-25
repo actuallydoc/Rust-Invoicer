@@ -13,15 +13,15 @@ use std::{
 use crate::render::export_pdf_to_jpegs;
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 pub enum PaymentStatus {
-    PAID,
+    Paid,
     #[default]
-    UNPAID,
+    Unpaid,
 }
 impl Display for PaymentStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PaymentStatus::PAID => write!(f, "PAID"),
-            PaymentStatus::UNPAID => write!(f, "UNPAID"),
+            PaymentStatus::Paid => write!(f, "PAID"),
+            PaymentStatus::Unpaid => write!(f, "UNPAID"),
         }
     }
 }
@@ -149,7 +149,7 @@ impl Default for Invoice {
             invoice_reference: "0000".to_string(),
             services: vec![Service::default("Service", 1, 0.0)],
             created_by: "Invoicer".to_string(),
-            status: PaymentStatus::UNPAID,
+            status: PaymentStatus::Unpaid,
         }
     }
 }
@@ -196,7 +196,7 @@ pub fn render_footer(
 ) {
     let y = y - Mm(97.0);
 
-    make_line(&layer, Mm(13.0), y + Mm(2.0), Mm(197.0), y + Mm(2.0));
+    make_line(layer, Mm(13.0), y + Mm(2.0), Mm(197.0), y + Mm(2.0));
 
     let y = y - Mm(1.0);
     layer.use_text(
@@ -230,7 +230,7 @@ pub fn render_payment_footer(
         y,
         standard_font,
     );
-    y = y - Mm(3.0);
+    y -= Mm(3.0);
     layer.use_text(
         format!("Sestavil: {}", racun.invoice.created_by),
         9.0,
@@ -238,7 +238,7 @@ pub fn render_payment_footer(
         y,
         standard_font,
     );
-    y = y - Mm(4.0);
+    y -= Mm(4.0);
 
     //Payment info /method
     layer.use_text(
@@ -275,7 +275,7 @@ pub fn render_summary_table(
     let tax_difference_x = Mm(125.0);
     let total_price_x = Mm(150.0);
     if racun.invoice.invoice_tax > 0.0 {
-        make_line(&layer, Mm(13.0), y, Mm(197.0), y);
+        make_line(layer, Mm(13.0), y, Mm(197.0), y);
         layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
 
         layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
@@ -283,7 +283,7 @@ pub fn render_summary_table(
         layer.use_text("DDV", 9.0, tax_difference_x, y, bold_font);
     
         layer.use_text("Znesek z DDV", 9.0, total_price_x, y, bold_font);
-        y = y - Mm(4.0);
+        y -= Mm(4.0);
         layer.use_text(
             format!("DDV {}%", racun.invoice.invoice_tax),
             9.0,
@@ -468,36 +468,36 @@ pub fn render_table_end(
     //Decrease the Y by a couple of Mm
     let y = y - Mm(1.0);
     make_line(layer, Mm(165.0), y, Mm(195.0), y);
-    return (
+    (
         y,
         total_price,
         calculated_tax_difference,
         total_price_with_tax,
-    );
+    )
 }
 
 pub fn render_table_header(layer: &PdfLayerReference, racun: &Racun, bold: &IndirectFontRef) {
     //Opis
     let y = Mm(193.0);
     let mut x = Mm(15.0);
-    layer.use_text("Opis", racun.config.font_sizes.small, x, y, &bold);
+    layer.use_text("Opis", racun.config.font_sizes.small, x, y, bold);
 
     //Količina
     x += Mm(105.0);
-    layer.use_text("Količina", racun.config.font_sizes.small, x, y, &bold);
+    layer.use_text("Količina", racun.config.font_sizes.small, x, y, bold);
 
     //Cena
     x += Mm(22.0);
-    layer.use_text("Cena", racun.config.font_sizes.small, x, y, &bold);
+    layer.use_text("Cena", racun.config.font_sizes.small, x, y, bold);
 
     //DDV
     x += Mm(22.0);
     if racun.invoice.invoice_tax > 0.0 {
-        layer.use_text("DDV", racun.config.font_sizes.small, x, y, &bold);
+        layer.use_text("DDV", racun.config.font_sizes.small, x, y, bold);
     }
     //Znesek
     x += Mm(15.0);
-    layer.use_text("Znesek", racun.config.font_sizes.small, x, y, &bold);
+    layer.use_text("Znesek", racun.config.font_sizes.small, x, y, bold);
 
     make_line(layer, Mm(13.0), Mm(190.0), Mm(197.0), Mm(190.0));
 }
@@ -509,27 +509,27 @@ pub fn render_partner_header(
 ) {
     //Partner name
     layer.use_text(
-        format!("{}", racun.invoice.partner.partner_name),
+        racun.invoice.partner.partner_name.to_string(),
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(233.0),
-        &standard_font,
+        standard_font,
     );
     //Partner address
     layer.use_text(
-        format!("{}", racun.invoice.partner.partner_address),
+        racun.invoice.partner.partner_address.to_string(),
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(228.0),
-        &standard_font,
+        standard_font,
     );
     //Partner postal code with city
     layer.use_text(
-        format!("{}", racun.invoice.partner.partner_postal_code),
+        racun.invoice.partner.partner_postal_code.to_string(),
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(223.0),
-        &standard_font,
+        standard_font,
     );
 
     //Partner tax number
@@ -541,7 +541,7 @@ pub fn render_partner_header(
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(202.0),
-        &standard_font,
+        standard_font,
     );
 }
 
@@ -553,27 +553,27 @@ pub fn render_company_header(
 ) {
     //Company name
     layer.use_text(
-        format!("{}", racun.invoice.company.company_name),
+        racun.invoice.company.company_name.to_string(),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(276.0),
-        &bold_font,
+        bold_font,
     );
     //Company address
     layer.use_text(
-        format!("{}", racun.invoice.company.company_address),
+        racun.invoice.company.company_address.to_string(),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(271.0),
-        &standard_font,
+        standard_font,
     );
     //Company postal code with address
     layer.use_text(
-        format!("{}", racun.invoice.company.company_postal_code),
+        racun.invoice.company.company_postal_code.to_string(),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(267.0),
-        &standard_font,
+        standard_font,
     );
 
     //Company tax number
@@ -582,7 +582,7 @@ pub fn render_company_header(
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(263.0),
-        &standard_font,
+        standard_font,
     );
 
     //Company bank account
@@ -591,7 +591,7 @@ pub fn render_company_header(
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(259.0),
-        &standard_font,
+        standard_font,
     );
     //Company swift
     layer.use_text(
@@ -599,7 +599,7 @@ pub fn render_company_header(
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(255.0),
-        &standard_font,
+        standard_font,
     );
     //Company registration number
     layer.use_text(
@@ -610,7 +610,7 @@ pub fn render_company_header(
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(251.0),
-        &standard_font,
+        standard_font,
     );
     //Company phone
     layer.use_text(
@@ -618,7 +618,7 @@ pub fn render_company_header(
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(247.0),
-        &standard_font,
+        standard_font,
     );
     //Invoice number
     layer.use_text(
@@ -626,7 +626,7 @@ pub fn render_company_header(
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(243.0),
-        &standard_font,
+        standard_font,
     );
 }
 
@@ -649,7 +649,7 @@ pub fn render_invoice_header(
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(274.0),
-        &standard_font,
+        standard_font,
     );
     //Datum opravljene storitve
     layer.use_text(
@@ -657,7 +657,7 @@ pub fn render_invoice_header(
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(270.0),
-        &standard_font,
+        standard_font,
     );
     //Rok plačila
     layer.use_text(
@@ -665,7 +665,7 @@ pub fn render_invoice_header(
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(266.0),
-        &standard_font,
+        standard_font,
     );
 }
 pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
@@ -685,15 +685,15 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
     let current_layer = doc.get_page(page1).get_layer(layer1);
     //Start of text
     current_layer.begin_text_section();
-    render_invoice_header(&current_layer, &racun, &standard_font);
-    render_company_header(&current_layer, &racun, &standard_font, &bold_font);
-    render_partner_header(&current_layer, &racun, &standard_font);
-    render_table_header(&current_layer, &racun, &bold_font);
+    render_invoice_header(&current_layer, racun, &standard_font);
+    render_company_header(&current_layer, racun, &standard_font, &bold_font);
+    render_partner_header(&current_layer, racun, &standard_font);
+    render_table_header(&current_layer, racun, &bold_font);
     let (y, total_price, calculated_tax_difference, total_price_with_tax) =
-        render_table_contents(&current_layer, &racun, &standard_font);
+        render_table_contents(&current_layer, racun, &standard_font);
     let y = render_summary_table(
         &current_layer,
-        &racun,
+        racun,
         &standard_font,
         &bold_font,
         y,
@@ -703,10 +703,10 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
     );
 
     //Make payment footer
-    let y = render_payment_footer(&current_layer, &racun, &standard_font, y);
-    render_footer(&current_layer, &racun, &standard_font, y);
+    let y = render_payment_footer(&current_layer, racun, &standard_font, y);
+    render_footer(&current_layer, racun, &standard_font, y);
     //Save pdf entry and return the path to the pdf file
-    let path = save_invoice(doc, &racun);
+    let path = save_invoice(doc, racun);
 
     match path {
         Some((a, jpg_file_path)) => {
@@ -718,7 +718,7 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
             ) {
                 Ok(_) => {
                   
-                    save_to_json(&racun);
+                    save_to_json(racun);
                   
                 }
                 Err(e) => println!("Error saving invoice image: {}", e),
@@ -734,14 +734,14 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
         }
     }
     //Save the json data to output.json
-    save_to_json(&racun);
+    save_to_json(racun);
     Ok(())
 }
 
 pub fn save_to_json(racun: &Racun) {
     let cwd = env::current_dir().expect("Couldn't get current directory");
     let invoice_dir = cwd.join("invoices");
-    let invoice_number_dir = invoice_dir.join(racun.invoice.invoice_number.to_string());
+    let invoice_number_dir = invoice_dir.join(&racun.invoice.invoice_number);
 
     if !invoice_number_dir.exists() {
         fs::create_dir(&invoice_number_dir).expect("Couldn't create invoice directory");
@@ -764,7 +764,7 @@ pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf
     //Then save the invoice in that directory
     let cwd = env::current_dir().expect("Couldn't get current directory");
     let invoice_dir = cwd.join("invoices");
-    let invoice_number_dir = invoice_dir.join(racun.invoice.invoice_number.to_string());
+    let invoice_number_dir = invoice_dir.join(&racun.invoice.invoice_number);
 
     if !invoice_dir.exists() {
         fs::create_dir(invoice_dir).expect("Couldn't create directory(It might already exist?)");

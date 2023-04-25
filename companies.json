@@ -1,0 +1,47 @@
+[
+    {
+        "companyCurrency": "EUR",
+        "companyName": "Company",
+        "companyAddress": "Address",
+        "companyPostalCode": "0000",
+        "companyBankname": "Bank",
+        "companyVatId": "00000000",
+        "companyIban": "00000000000000000000",
+        "companySwift": "000000000",
+        "companyRegistrationNumber": "00000000000000000000",
+        "companyPhone": "000000000",
+        "companySignature": "000000000",
+        "companyVatRate": 0.0,
+        "companyBusinessRegisteredAt": "000000000"
+    },
+    {
+        "companyCurrency": "EUR",
+        "companyName": "Company",
+        "companyAddress": "Address",
+        "companyPostalCode": "0000",
+        "companyBankname": "Bank",
+        "companyVatId": "00000000",
+        "companyIban": "00000000000000000000",
+        "companySwift": "000000000",
+        "companyRegistrationNumber": "00000000000000000000",
+        "companyPhone": "000000000",
+        "companySignature": "000000000",
+        "companyVatRate": 0.0,
+        "companyBusinessRegisteredAt": "000000000"
+    },
+    {
+        "companyCurrency": "EUR",
+        "companyName": "Company",
+        "companyAddress": "Address",
+        "companyPostalCode": "0000",
+        "companyBankname": "Bank",
+        "companyVatId": "00000000",
+        "companyIban": "00000000000000000000",
+        "companySwift": "000000000",
+        "companyRegistrationNumber": "00000000000000000000",
+        "companyPhone": "000000000",
+        "companySignature": "000000000",
+        "companyVatRate": 0.0,
+        "companyBusinessRegisteredAt": "000000000"
+    }
+]

@@ -18,14 +18,14 @@ Step 2: Put fonts inside "/fonts" and name them font.ttf and font_bold.ttf (Both
 Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 ```
 #### Features
-- [✔] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects)
+- [✔] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects rust alternative to jspdf-table(javascript) )
 - [✔] GUI
 - [✔] Invoice generator
 - [✔] Fixed invoice template with table support
 - [✔] Invoice Rendering through the GUI
 - [✔] Invoice generation through GUI
 - [✔] Deleting PDF's
-- [✔] Only Slovenian language support(FOR NOW)
+- [✔] Only Slovenian language support on the invoice template(FOR NOW)
 - [✔] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
 - [✔] No tax template which removes the all tax parts from the template
 #### Upcoming features.

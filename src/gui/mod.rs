@@ -1,24 +1,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::{Racun, init, Service, Invoice};
-use discord_rpc_client::*;
+use crate::invoicer::{Racun, init, Service, Partner, Company};
+
 use eframe::{self, IconData};
 use eframe::egui;
-use egui::{widgets, Color32, TextureHandle, Align, Layout, Label};
+use egui::{widgets, Color32, TextureHandle, Align, Layout};
 use egui::{RichText, Vec2};
 use fs::File;
-use std::fmt::{format, Display, Formatter};
-use std::time::Duration;
+use std::fmt::format;
 use std::{env, thread};
 use std::fs::{self, DirEntry};
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::mpsc::{self, Sender, channel, Receiver};
-//Consts
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
-
-
 
 struct GuiApp {
     allowed_to_close: bool,
@@ -35,21 +30,37 @@ struct GuiApp {
     clicked_invoice: Racun,
     latest_invoice: Racun,
     add_service: bool,
-    rpc_client: Client,
-    // presence_data: DiscordPresenceState,
-    client_id: u64,
-    change_presence: bool
+    create_partner: bool,
+    edit_partner: bool,
+    create_company: bool,
+    edit_company: bool,
+    create_service: bool,
+    edit_service: bool,
+    empty_company: Company,
+    empty_partner: Partner,
+    empty_service: Service,
+    temp_company: Company,
+    temp_partner: Partner,
+    temp_service: Service,
+    companies: Vec<Company>,
+    partners: Vec<Partner>,
+    services: Vec<Service>,
 }
 
 trait Data {
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
     fn parse_jsons(&mut self);
-    fn new(client_id: u64) -> Self;
+    fn new() -> Self;
     fn generate_pdf(&mut self, invoice: Racun)-> bool;
-    // fn set_presence_activity(&mut self);
+    fn get_partners(&mut self);
+    fn get_services(&mut self);
+    fn get_companies(&mut self);
+    fn append_partner(&mut self, partner: Partner);
+    fn append_service(&mut self, service: Service);
+    fn append_company(&mut self, company: Company);
 }
 impl Data for GuiApp {
-    fn new(client_id: u64) -> Self {
+    fn new() -> Self {
         let mut this = Self {
             allowed_to_close: false,
             clicked_pdf_path: PathBuf::new(),
@@ -57,8 +68,10 @@ impl Data for GuiApp {
             show_image: false,
             invoice_paths: Vec::new(),
             json_data: Vec::new(),
+            companies: Vec::new(),
+            partners: Vec::new(),
+            services: Vec::new(),
             delete_invoice: false,
-            rpc_client: Client::new(client_id),
             texture: None,
             refresh: false,    
             create: false,
@@ -66,44 +79,25 @@ impl Data for GuiApp {
             latest_invoice: Racun::default(),
             add_service: false,
             clicked_invoice: Racun::default(),
-            client_id,
-            // presence_data: DiscordPresenceState {
-            //     details: "0".to_string(),
-            //     status: Status::Connecting,
-            //     tab: TabLocation::Main
-            // },
-            change_presence: false
+            create_company: false,
+            edit_company: false,
+            create_partner: false,
+            edit_partner: false,
+            create_service: false,
+            edit_service: false,
+            empty_company: Company::default(),
+            empty_partner: Partner::default(),
+            empty_service: Service::default("None", 1, 0.0),
+            temp_company: Company::default(),
+            temp_partner: Partner::default(),
+            temp_service: Service::default("None", 1, 0.0),
         };
         if let Some(invoices) = this.get_invoices() {
             this.invoice_paths = invoices;
         }else {
             this.invoice_paths = Vec::new();
         }
-        // if client_id < 0 {
-        //     this.presence_data.status = Status::Disconnected;
-        //     println!("Client ID is invalid, please enter a valid client ID");
-        // }else {
-        // this.rpc_client.start();
-        // println!("Client ID: {}", client_id);
-        // println!("Setting the activity to: \"{}\" and \"{}\"", this.presence_data.details, this.presence_data.state());
-        // match this.rpc_client.set_activity(|activity|{
-        //     activity
-        //     .state(format!("Total invoices: {}",this.json_data.iter().len().to_string()))
-        //     .details(format!("TAB: {}" ,this.presence_data.get_tab()))
-        //     .assets(|assets|{
-        //         assets.large_image("logo")
-        //     })
-        // }) {
-        //     Ok(_) => {
-        //         println!("Successfully set the activity");
-        //         this.presence_data.status = Status::Connected;
-        //     }
-        //     Err(err) => {
-        //         println!("Could not set the activity, error code: {}", err);
-        //         this.presence_data.status = Status::Disconnected;
-        //     }
-        // }
-        // }
+        this.get_companies();
         this.parse_jsons();
         this
     }
@@ -126,6 +120,51 @@ impl Data for GuiApp {
     
         }
     }
+    fn get_companies(&mut self) {
+        //Open the json file
+        let mut file_content = match File::open("../../companies.json") {
+            Ok(file) => file,
+            Err(_) => {
+                let file = File::create("../../companies.json").unwrap();
+                file
+            
+            },
+        };
+        println!("File content: {:?}", file_content);
+        let mut contents = String::new();
+            match file_content.read_to_string(&mut contents) {
+                Ok(_) => {
+                    let companies: Vec<Company> = match serde_json::from_str(&contents) {
+                        Ok(invoice) => invoice,
+                        Err(err) => panic!("Could not deserialize the file, error code: {}", err),
+                    };
+                    print!("{:?}", companies);
+                    for company in companies {
+                        self.companies.push(company);
+                        
+                    }
+                    
+                }
+                Err(err) => panic!("Could not read the json file, error code: {}", err),
+            };
+        
+    }
+    fn get_partners(&mut self) {
+        unimplemented!();
+    }
+    fn get_services(&mut self){
+        unimplemented!();
+    }
+
+    fn append_company(&mut self, company: Company) {
+        unimplemented!();
+    }
+    fn append_partner(&mut self, partner: Partner) {
+        unimplemented!();
+    }
+    fn append_service(&mut self, service: Service) {
+        unimplemented!();
+    }
     fn generate_pdf(&mut self, invoice: Racun)-> bool {
         let handle = thread::spawn(move || {
             let mut state = false;
@@ -134,7 +173,7 @@ impl Data for GuiApp {
     
                     state = true;
                 }
-                Err(err) => {
+                Err(_err) => {
                    
                     state = false;
                 }
@@ -144,8 +183,6 @@ impl Data for GuiApp {
         let result = handle.join().unwrap();
         result
     }
-
-            
     fn parse_jsons(&mut self) {
         let paths = self.get_invoices();
         //Make a vector of invoices
@@ -153,7 +190,7 @@ impl Data for GuiApp {
         for path in paths.unwrap() {
             let mut file_path = path.path();
             file_path.push("output.json");
-            let mut file_content = match File::open(file_path.to_str().unwrap().to_string()) {
+            let mut file_content = match File::open(file_path.to_str().unwrap()) {
                 Ok(file) => file,
                 Err(_) => {
                     continue;
@@ -205,18 +242,33 @@ impl eframe::App for GuiApp  {
                 ui.label("Project repo:");
                 ui.add(widgets::Hyperlink::new("https://github.com/actuallydoc"));
                 ui.add_space(PADDING);
-                ui.colored_label(
-                    CYAN,
-                    RichText::new(format!("This is a simple invoice manager written in Rust")),
-                );
-                if ui.button(RichText::new("Create").color(Color32::GREEN)).clicked() {
-                    self.create = true;
-                }
+                ui.horizontal(|ui| {
+                    ui.colored_label(
+                        CYAN,
+                        RichText::new("This is a simple invoice manager written in Rust".to_string()),
+                    );
+                    ui.add_space(PADDING);
+                    if ui.button(RichText::new("Create invoice").color(Color32::GREEN)).clicked() {
+                        self.create = true;
+                    }
+                    ui.add_space(PADDING);
+                    if ui.button(RichText::new("Create Company").color(Color32::GRAY)).clicked() {
+                        self.create_company = true;
+                    }
+                    ui.add_space(PADDING);
+                    if ui.button(RichText::new("Create Partner").color(Color32::GRAY)).clicked() {
+                        self.create_partner = true;
+                    }
+                    ui.add_space(PADDING);
+                    if ui.button(RichText::new("Create Service").color(Color32::GRAY)).clicked() {
+                        self.create_service = true;
+                    }
+                });
                 ui.add_space(PADDING);
                 ui.add_space(PADDING);
                 ui.add_space(10.0);
                 egui::Grid::new("invoice_grid").show(ui, |ui| {
-                    if self.json_data.iter().count() == 0 {
+                    if self.json_data.iter().len() == 0 {
                         ui.add(widgets::Spinner::new());
                         ui.label("No invoices found");
                         self.refresh = true;
@@ -263,12 +315,11 @@ impl eframe::App for GuiApp  {
                                     for invoice_path in &self.invoice_paths {
                                         if invoice_path
                                             .path()
-                                            .ends_with(&invoice.invoice.invoice_number.to_string())
+                                            .ends_with(&invoice.invoice.invoice_number)
                                         {
                                             self.clicked_pdf_path = invoice_path.path();
                                             //Get the JPG file from the clicked invoice and render it
-                                            if let Some(_) = self.clicked_pdf_path.file_name() {
-                                                
+                                            if self.clicked_pdf_path.file_name().is_some() {
                                                 if let Ok(files) =
                                                     fs::read_dir(&self.clicked_pdf_path)
                                                 {
@@ -327,14 +378,12 @@ impl eframe::App for GuiApp  {
                                         for invoice_path in &self.invoice_paths {
                                             if invoice_path
                                                 .path()
-                                                .ends_with(&invoice.invoice.invoice_number.to_string())
+                                                .ends_with(&invoice.invoice.invoice_number)
                                             {
                                              //Delete the invoice from the json file
-                                                match fs::remove_dir_all(invoice_path.path()) {
-                                                    Ok(_) => self.refresh = true ,
-                                                    Err(_) => (),
-                                            
-                                                }
+                                             if fs::remove_dir_all(invoice_path.path()).is_ok() {
+                                                self.refresh = true;
+                                             }
                                                
                                             }
 
@@ -354,8 +403,13 @@ impl eframe::App for GuiApp  {
                         ui.with_layout(Layout::left_to_right(egui::Align::BOTTOM), |ui| {
                             ui.horizontal(|ui| {
                                 ui.label("Total invoices:");
-                                ui.label(self.json_data.iter().count().to_string());
+                                ui.label(self.json_data.iter().len().to_string());
                                 ui.add_space(50.00);
+                                ui.label(format!("Companies: {}", self.companies.len().to_string()));
+                                ui.add_space(50.00);
+                                ui.label(format!("Partners: {}", self.partners.len().to_string()));
+                                ui.add_space(50.00);
+                                ui.label(format!("Services: {}", self.services.len().to_string()));
                                 // ui.label(format!("Discord: {}",self.presence_data.state()));
                             });
                         });
@@ -434,8 +488,7 @@ impl eframe::App for GuiApp  {
                             );
                         });
                        
-                    }); 
-            
+                    });
                     if self.add_service {
                         egui::Window::new("Add a service")
                             .collapsible(false)
@@ -513,15 +566,14 @@ impl eframe::App for GuiApp  {
                         for invoice_path in &self.invoice_paths {
                             if invoice_path
                                 .path()
-                                .ends_with(&self.clicked_invoice.invoice.invoice_number.to_string())
+                                .ends_with(&self.clicked_invoice.invoice.invoice_number)
                             {
                              //Delete the invoice from the json file
-                                match fs::remove_dir_all(invoice_path.path()) {
-                                    Ok(_) => self.refresh = true ,
-                                    Err(_) => (),
                             
-                                }
-                               
+                             if fs::remove_dir_all(invoice_path.path()).is_ok() {
+                                self.refresh = true;
+                             }
+                                     
                             }
 
                         }
@@ -531,11 +583,55 @@ impl eframe::App for GuiApp  {
                 if ui.button("Close").clicked(){
                     self.edit = false
                 }
-            
             }); 
-            
+        } 
+
+        if self.create_company {
+            egui::Window::new("Create Company").resizable(true).show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+                        ui.vertical(|ui| {
+                            ui.heading("Company data");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_name))
+                                .on_hover_text("Company name");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_iban))
+                                .on_hover_text("Company IBAN");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_swift))
+                                .on_hover_text("Company SWIFT");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_bankname))
+                            .on_hover_text("Company Bank Name");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_address))
+                                .on_hover_text("Company address");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_postal_code))
+                                .on_hover_text("Company postal code");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_vat_id))
+                                .on_hover_text("Company VAT");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_phone))
+                                .on_hover_text("Company PHONE");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_registration_number))
+                                .on_hover_text("Company Registeration number");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_business_registered_at))
+                                .on_hover_text("Company Registered at");
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_currency))
+                                .on_hover_text("Company currency");
+
+                            //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
+                            ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_signature))
+                                .on_hover_text("Company signature");   
+
+                            if ui.button("Create").clicked() {
+                                self.create_company = false;
+                                self.temp_company = self.empty_company.clone();
+                                self.empty_company = Company::default();
+                                unimplemented!("Create a company and add it to the json file");
+                                //*Save the company to the json file */
+                            }
+                        })
+                    });
+                })
+            });
         }
-        
+
         if self.create {
             egui::Window::new("Create invoice!").resizable(true).show(ctx,|ui|{
                 ui.horizontal(|ui|{
@@ -715,7 +811,7 @@ self.show_image = false;
             // Show confirmation dialog:
             egui::Window::new("Do you want to quit?")
                 .collapsible(true)
-                .resizable(true)
+                .resizable(false)
                 .default_size(Vec2::new(600.0, 500.0))
                 .show(ctx, |ui| {
                     ui.horizontal(|ui| {
@@ -732,42 +828,7 @@ self.show_image = false;
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Status{
-    Connected,
-    Disconnected,
-    Connecting,
-}
-#[derive(Clone, Debug)]
-pub struct DiscordPresenceState {
-    details: String,
-    status: Status,
-    tab: TabLocation,
-}
-#[derive(Clone, Debug)]
-pub enum TabLocation {
-    Main, 
-    Edit,
-    Create,
-    PdfViewer,
-}
-impl DiscordPresenceState {
-    fn state(&self)-> String {
-        match self.status {
-            Status::Connected => "Connected".to_string(),
-            Status::Disconnected => "Disconnected".to_string(),
-            Status::Connecting => "Connecting".to_string(),
-        }
-    }
-    fn get_tab(&self) -> String {
-        match self.tab {
-            TabLocation::Main => "Main".to_string(),
-            TabLocation::Edit => "Edit".to_string(),
-            TabLocation::Create => "Create".to_string(),
-            TabLocation::PdfViewer => "PDF".to_string(),
-        }
-    }
-}
+
 
 
 pub fn entry() {
@@ -783,12 +844,12 @@ pub fn entry() {
         icon_data: Some(icon),
         ..Default::default()
     };
-    let client_id = 1082013840323129434;
-    let app = GuiApp::new(client_id);
+
+    let app = GuiApp::new();
 
     eframe::run_native(
         "Invoice GUI",
-        options.clone(),
+        options,
         Box::new(|_cc| Box::new(app)),
     ).unwrap(); 
 }
