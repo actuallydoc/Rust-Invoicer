@@ -1,0 +1,26 @@
+[
+    {
+        "partnerName": "Partner",
+        "partnerAddress": "Address",
+        "partnerPostalCode": "0000",
+        "partnerVatId": "00000000"
+    },
+    {
+        "partnerName": "Partner",
+        "partnerAddress": "Address",
+        "partnerPostalCode": "0000",
+        "partnerVatId": "00000000"
+    },
+    {
+        "partnerName": "Partner",
+        "partnerAddress": "Address",
+        "partnerPostalCode": "0000",
+        "partnerVatId": "00000000"
+    },
+    {
+        "partnerName": "Partner",
+        "partnerAddress": "Address",
+        "partnerPostalCode": "0000",
+        "partnerVatId": "00000000"
+    }
+]

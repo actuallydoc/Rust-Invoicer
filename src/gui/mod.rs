@@ -55,9 +55,9 @@ trait Data {
     fn get_partners(&mut self);
     fn get_services(&mut self);
     fn get_companies(&mut self);
-    fn append_partner(&mut self, partner: Partner);
-    fn append_service(&mut self, service: Service);
-    fn append_company(&mut self, company: Company);
+    fn save_partner(&mut self, partner: Partner);
+    fn save_service(&mut self, service: Service);
+    fn save_company(&mut self, company: Company);
 }
 impl Data for GuiApp {
     fn new() -> Self {
@@ -98,6 +98,8 @@ impl Data for GuiApp {
             this.invoice_paths = Vec::new();
         }
         this.get_companies();
+        this.get_partners();
+        this.get_services();
         this.parse_jsons();
         this
     }
@@ -120,17 +122,17 @@ impl Data for GuiApp {
     
         }
     }
+    //*!TODO if the json file is empty dont parse it cause its gonna panic or i can just use a print statement */
     fn get_companies(&mut self) {
         //Open the json file
-        let mut file_content = match File::open("../../companies.json") {
+        let mut file_content = match File::open("companies.json") {
             Ok(file) => file,
             Err(_) => {
-                let file = File::create("../../companies.json").unwrap();
+                let file = File::create("companies.json").unwrap();
                 file
             
             },
         };
-        println!("File content: {:?}", file_content);
         let mut contents = String::new();
             match file_content.read_to_string(&mut contents) {
                 Ok(_) => {
@@ -150,19 +152,65 @@ impl Data for GuiApp {
         
     }
     fn get_partners(&mut self) {
-        unimplemented!();
+        let mut file_content = match File::open("partners.json") {
+            Ok(file) => file,
+            Err(_) => {
+                let file = File::create("partners.json").unwrap();
+                file
+            
+            },
+        };
+        let mut contents = String::new();
+            match file_content.read_to_string(&mut contents) {
+                Ok(_) => {
+                    let partners: Vec<Partner> = match serde_json::from_str(&contents) {
+                        Ok(invoice) => invoice,
+                        Err(err) => panic!("Could not deserialize the file, error code: {}", err),
+                    };
+                    print!("{:?}", partners);
+                    for partner in partners {
+                        self.partners.push(partner);
+                        
+                    }
+                    
+                }
+                Err(err) => panic!("Could not read the json file, error code: {}", err),
+            };
     }
     fn get_services(&mut self){
-        unimplemented!();
+        let mut file_content = match File::open("services.json") {
+            Ok(file) => file,
+            Err(_) => {
+                let file = File::create("services.json").unwrap();
+                file
+            
+            },
+        };
+        let mut contents = String::new();
+            match file_content.read_to_string(&mut contents) {
+                Ok(_) => {
+                    let services: Vec<Service> = match serde_json::from_str(&contents) {
+                        Ok(invoice) => invoice,
+                        Err(err) => panic!("Could not deserialize the file, error code: {}", err),
+                    };
+                   
+                    for service in services {
+                        self.services.push(service);
+                        
+                    }
+                    
+                }
+                Err(err) => panic!("Could not read the json file, error code: {}", err),
+            };
     }
 
-    fn append_company(&mut self, company: Company) {
+    fn save_company(&mut self, company: Company) {
         unimplemented!();
     }
-    fn append_partner(&mut self, partner: Partner) {
+    fn save_partner(&mut self, partner: Partner) {
         unimplemented!();
     }
-    fn append_service(&mut self, service: Service) {
+    fn save_service(&mut self, service: Service) {
         unimplemented!();
     }
     fn generate_pdf(&mut self, invoice: Racun)-> bool {
