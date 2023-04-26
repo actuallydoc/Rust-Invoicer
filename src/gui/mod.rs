@@ -647,7 +647,15 @@ impl Data for GuiApp {
             ui.horizontal(|ui|{
                 ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                     ui.vertical(|ui| {
+                        
                         ui.heading("Company data");
+                        if self.companies.len() < 0 {
+                            
+                        }else {
+                            if ui.button(RichText::new("Change company").color(Color32::RED)).clicked() {
+                                self.change_company = true;
+                            }
+                        }
                         ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_name))
                             .on_hover_text("Company name");
                         ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.company.company_iban))
@@ -677,6 +685,13 @@ impl Data for GuiApp {
                     });
                     ui.vertical(|ui| {
                         ui.heading("Partner data");
+                        if self.partners.len() < 0 {
+                            
+                        }else {
+                            if ui.button(RichText::new("Change partner").color(Color32::RED)).clicked() {
+                                self.change_partner = true;
+                            }
+                        }
                         ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.partner.partner_name))
                             .on_hover_text("Partner name");
                         ui.add(egui::TextEdit::singleline(&mut self.clicked_invoice.invoice.partner.partner_address))
@@ -713,84 +728,68 @@ impl Data for GuiApp {
                             "Payment amount without vat. Vat is calculated on the end",
                         );
                     });
-                   
-                });
+                }); 
+                
                 if self.add_service {
                     self.render_add_service(ctx);
                 }
                 
             });
             ui.vertical(|ui| {
-                let mut delete = None;
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.heading("Services");
-                        for (pos, service) in self.clicked_invoice.invoice.services.iter_mut().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.add(egui::TextEdit::multiline(&mut service.service_name))
-                                    .on_hover_text("Service description");
-                                ui.add(
-                                    egui::Slider::new(&mut service.service_price, 0.0..=10000.0)
-                                        .text("Amount to pay")
-                                        .max_decimals(3),
-                                )
-                                .on_hover_text(
-                                    "Payment amount without vat. Vat is calculated on the end",
-                                );
-                                ui.add(
-                                    egui::Slider::new(&mut service.service_quantity, 0..=100)
-                                        .text("Quantity")
-                                        .max_decimals(3),
-                                )
-                                .on_hover_text(
-                                    "Payment amount without vat. Vat is calculated on the end",
-                                );
-                                if ui
-                                .add(egui::Button::new("Delete"))
-                                .on_hover_text("Delete a service. THIS CANNOT BE UNDONE!")
-                                .clicked()
-                                     {
-                                delete = Some(pos);
-                                    };
-                             });
-                             
+                    let mut delete = None;
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.heading("Services");
+                            for (pos, service) in self.clicked_invoice.invoice.services.iter_mut().enumerate() {
+                                ui.horizontal(|ui| {
+                                    ui.add(egui::TextEdit::multiline(&mut service.service_name))
+                                        .on_hover_text("Service description");
+                                    ui.add(
+                                        egui::Slider::new(&mut service.service_price, 0.0..=10000.0)
+                                            .text("Amount to pay")
+                                            .max_decimals(3),
+                                    )
+                                    .on_hover_text(
+                                        "Payment amount without vat. Vat is calculated on the end",
+                                    );
+                                    ui.add(
+                                        egui::Slider::new(&mut service.service_quantity, 0..=100)
+                                            .text("Quantity")
+                                            .max_decimals(3),
+                                    )
+                                    .on_hover_text(
+                                        "Payment amount without vat. Vat is calculated on the end",
+                                    );
+                                    if ui
+                                    .add(egui::Button::new("Delete"))
+                                    .on_hover_text("Delete a service. THIS CANNOT BE UNDONE!")
+                                    .clicked()
+                                         {
+                                    delete = Some(pos);
+                                        };
+                                 });
+                                 
+                            }
+                            if let Some(pos) = delete {
+                                
+                                self.clicked_invoice.invoice.services.remove(pos);
+                            }
+                            if ui.button("Add service").clicked() {
+                                self.add_service = true;
+                            }
+                        });
+                        if ui.button("Edit").clicked() {
+                            self.generate_pdf(self.clicked_invoice.clone());
+                            self.edit = false;
                         }
-                        if let Some(pos) = delete {
-                            
-                            self.clicked_invoice.invoice.services.remove(pos);
-                        }
-                        if ui.button("Add service").clicked() {
-                            self.add_service = true;
+                        ui.add_space(20.0);
+                        if ui.button("Exit").clicked() {
+                            self.edit = false;
                         }
                     });
-                });
-             
+                });      
             });
-            if ui.button("Edit").clicked(){
-                   //*!!TODO Delete all the previous data from the folder and replace it with the new one*/
-                    println!("Invoice fields: {:#?}", self.clicked_invoice.invoice);
-                    //The invoice is getting modified in memory already when you change a field now you just have to delete the folder and create a new one with the new data
-                    for invoice_path in &self.invoice_paths {
-                        if invoice_path
-                            .path()
-                            .ends_with(&self.clicked_invoice.invoice.invoice_number)
-                        {
-                         //Delete the invoice from the json file
-                        
-                         if fs::remove_dir_all(invoice_path.path()).is_ok() {
-                            self.refresh = true;
-                         }
-                                 
-                        }
-
-                    }
-                    self.generate_pdf(self.clicked_invoice.clone());
-                    self.edit = false;
-                }
-            if ui.button("Close").clicked(){
-                self.edit = false
-            }
-        }); 
+         
     }
     fn render_create_invoice(&mut self, ctx: &egui::Context) {
         egui::Window::new("Create invoice!").resizable(true).show(ctx,|ui|{
