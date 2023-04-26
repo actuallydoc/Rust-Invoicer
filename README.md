@@ -32,8 +32,8 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 #### Upcoming features.
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
-- [❌] Hopefully i can implement to convert PDF into JPG and save it to 
-memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
+- [❌] Auto complete partner from Slovenian database (will probably use webscraping instead of an api)
+- [❌] Hopefully i can implement to convert PDF into JPG and save it to memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
 
 # Showcase
 

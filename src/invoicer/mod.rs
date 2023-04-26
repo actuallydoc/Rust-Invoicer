@@ -39,7 +39,7 @@ pub struct FontSizes {
 pub struct InvoiceStructure {
     pub font_sizes: FontSizes,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Partner {
     pub partner_name: String,
@@ -58,7 +58,7 @@ impl Partner {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Service {
     pub service_name: String,
@@ -74,7 +74,7 @@ impl Service {
         }
     }
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Company {
     pub company_currency: String,
@@ -217,13 +217,13 @@ pub fn render_payment_footer(
     standard_font: &IndirectFontRef,
     y: Mm,
 ) -> Mm {
-    let current_date = chrono::Utc::now().year();
+    let current_year = chrono::Utc::now().year();
     let mut y = y - Mm(10.0);
     let base_x = Mm(15.0);
     layer.use_text(
         format!(
             "Sklic za številko: {}00-{:04}-{}",
-            racun.invoice.invoice_reference, racun.invoice.invoice_number, current_date
+            racun.invoice.invoice_reference, racun.invoice.invoice_number, current_year
         ),
         9.0,
         base_x,
@@ -535,7 +535,7 @@ pub fn render_partner_header(
     //Partner tax number
     layer.use_text(
         format!(
-            "ID za DDV kupca: SI {}",
+            "ID za DDV kupca: {}",
             racun.invoice.partner.partner_vat_id
         ),
         racun.config.font_sizes.small,
@@ -551,6 +551,7 @@ pub fn render_company_header(
     standard_font: &IndirectFontRef,
     bold_font: &IndirectFontRef,
 ) {
+    let current_year = chrono::Utc::now().year();
     //Company name
     layer.use_text(
         racun.invoice.company.company_name.to_string(),
@@ -587,7 +588,7 @@ pub fn render_company_header(
 
     //Company bank account
     layer.use_text(
-        format!("BAN št: {}", racun.invoice.company.company_iban),
+        format!("IBAN št: {}", racun.invoice.company.company_iban),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(259.0),
@@ -620,9 +621,10 @@ pub fn render_company_header(
         Mm(247.0),
         standard_font,
     );
+    
     //Invoice number
     layer.use_text(
-        format!("Račun št: {}", racun.invoice.invoice_number),
+        format!("Račun št: {}-{}", racun.invoice.invoice_number, current_year),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(243.0),

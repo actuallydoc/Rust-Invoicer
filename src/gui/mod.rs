@@ -39,12 +39,14 @@ struct GuiApp {
     empty_company: Company,
     empty_partner: Partner,
     empty_service: Service,
-    // temp_company: Company,
-    // temp_partner: Partner,
-    // temp_service: Service,
+    temp_company: Company,
+    temp_partner: Partner,
+    temp_service: Service,
     companies: Vec<Company>,
     partners: Vec<Partner>,
     services: Vec<Service>,
+    change_company: bool,
+    change_partner: bool,
 }
 trait Data {
     fn new() -> Self;
@@ -71,7 +73,9 @@ trait Data {
     fn render_create_invoice(&mut self, ctx: &egui::Context);
     fn render_create_service(&mut self, ctx: &egui::Context);
     fn render_create_partner(&mut self, ctx: &egui::Context);
-
+    fn render_add_service(&mut self, ctx: &egui::Context);
+    fn render_change_partner(&mut self, ctx: &egui::Context);
+    fn render_change_company(&mut self, ctx: &egui::Context);
 }
 impl Data for GuiApp {
     fn new() -> Self {
@@ -102,9 +106,11 @@ impl Data for GuiApp {
             empty_company: Company::default(),
             empty_partner: Partner::default(),
             empty_service: Service::default(),
-            // temp_company: Company::default(),
-            // temp_partner: Partner::default(),
-            // temp_service: Service::default(),
+            temp_company: Company::default(),
+            temp_partner: Partner::default(),
+            temp_service: Service::default(),
+            change_company: false,
+            change_partner: false,
         };
         if let Some(invoices) = this.get_invoices() {
             this.invoice_paths = invoices;
@@ -342,6 +348,119 @@ impl Data for GuiApp {
             });
         });
     }
+
+    fn render_change_company(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Change company").show(ctx, |ui| {
+            ui.vertical(|ui| {
+                if self.companies == Vec::new() {
+                    ui.label("There are no companies, please create one");
+                   
+                } else {
+                egui::ComboBox::from_label("Select premade companies: ")
+                    .selected_text(format!("{:?}", self.temp_company.company_name))
+                    .show_ui(ui, |ui| {
+                        for company in self.companies.iter() {
+                            if ui.selectable_value(&mut self.temp_company , company.clone(), format!("{:?}", company.company_name)).clicked() {
+                                self.latest_invoice.invoice.company = self.temp_company.clone();
+                                self.change_company = false;
+                            };
+                        }
+                    }
+                );
+            }
+            ui.add_space(20.0);
+                if ui.button("Create a new company").clicked() {
+                    self.change_company = false;
+                    self.create_company = true;
+                }
+            ui.add_space(10.00);
+                if ui.button("Exit").clicked(){
+                    self.change_company = false;
+                }
+            })
+        });
+    }
+
+    fn render_change_partner(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Change partner").show(ctx, |ui| {
+            ui.vertical(|ui| {
+                if self.partners ==  Vec::new() {
+                    ui.label("There are no partners in the database, please create one");
+                        
+                }else {
+                    egui::ComboBox::from_label("Select premade partners: ")
+                    .selected_text(format!("{:?}", self.temp_partner.partner_name))
+                    .show_ui(ui, |ui| {
+                        for partner in self.partners.iter() {
+                            if ui.selectable_value(&mut self.temp_partner , partner.clone(), format!("{:?}", partner.partner_name)).clicked() {
+                                self.latest_invoice.invoice.partner = self.temp_partner.clone();
+                                self.change_partner = false;
+                            };
+                        }
+                    }
+                );
+                }
+                ui.add_space(20.0);
+                if ui.button("Create a new partner").clicked() {
+                    self.change_partner = false;
+                    self.create_partner= true;
+                }
+                ui.add_space(20.0);
+                if ui.button("Exit").clicked(){
+                    self.change_partner = false;
+                }
+            })
+        });
+    }
+
+    fn render_add_service(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Add a service")
+        .collapsible(false)
+        .resizable(false)
+        .min_width(500.0)
+        .min_height(500.0)
+        .show(ctx, |ui| {
+            ui.vertical(|ui| {
+                ui.label("What kind of service do you want to add?");
+                if ui
+                    .button("Create a blank service!")
+                    .on_hover_text("Create a blank service with no data")
+                    .clicked()
+                {
+                    let new_service = Service::default();
+                    self.latest_invoice.invoice.services.push(new_service);
+                    // self.service_count += 1;
+                    self.add_service = false;
+                }
+                ui.add_space(30.0);
+                //Loop through the serivces and make a dropdown
+                if self.services == Vec::new() {
+                    ui.label("No premade services found in the database, please create one or choose blank!");
+                } else {
+                egui::ComboBox::from_label("Select premade services: ")
+                    .selected_text(format!("{:?}", self.temp_service.service_name))
+                    .show_ui(ui, |ui| {
+                        for service in self.services.iter() {
+                            if ui.selectable_value(&mut self.temp_service , service.clone(), format!("{:?}", service.service_name)).clicked() {
+                                self.latest_invoice.invoice.services.push(service.clone());
+                                self.add_service = false;
+                            };
+                        }
+                    }
+                );
+            }
+            ui.add_space(30.0);
+            if ui.button("Create a new service").clicked() {
+                self.add_service = false;
+                self.create_service = true;
+            }
+            ui.add_space(30.0);
+            if ui.button("Cancel").clicked() {
+                self.add_service = false;
+            }
+            })
+        });
+    }
     fn render_header(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         ui.label("Project repo:");
                 ui.add(widgets::Hyperlink::new("https://github.com/actuallydoc"));
@@ -406,8 +525,8 @@ impl Data for GuiApp {
                     for service in &invoice.invoice.services {
                         //Calculate the total price of the invoice
                         let mut total_price = 0.0;
-                        total_price += service.service_price + invoice.invoice.invoice_tax;
-                        ui.label(total_price.to_string());
+                        total_price += service.service_price * (100.0 + invoice.invoice.invoice_tax) / 100.0;
+                        ui.label(format!("{:.2} {}", total_price, invoice.invoice.invoice_currency));
                     }
                     ui.label(invoice.invoice.invoice_currency.to_string());
 
@@ -597,26 +716,7 @@ impl Data for GuiApp {
                    
                 });
                 if self.add_service {
-                    egui::Window::new("Add a service")
-                        .collapsible(false)
-                        .resizable(false)
-                        .min_width(500.0)
-                        .min_height(500.0)
-                        .show(ctx, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label("What kind of service do you want to add?");
-                                if ui
-                                    .button("Create a blank service!")
-                                    .on_hover_text("Create a blank service with no data")
-                                    .clicked()
-                                {
-                                    let new_service = Service::default();
-                                    self.latest_invoice.invoice.services.push(new_service);
-                                    // self.service_count += 1;
-                                    self.add_service = false;
-                                }
-                            })
-                        });
+                    self.render_add_service(ctx);
                 }
                 
             });
@@ -697,7 +797,15 @@ impl Data for GuiApp {
             ui.horizontal(|ui|{
                 ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                     ui.vertical(|ui| {
+                        
                         ui.heading("Company data");
+                        if self.companies.len() < 0 {
+                            
+                        }else {
+                            if ui.button(RichText::new("Change company").color(Color32::RED)).clicked() {
+                                self.change_company = true;
+                            }
+                        }
                         ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_name))
                             .on_hover_text("Company name");
                         ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.company.company_iban))
@@ -727,6 +835,13 @@ impl Data for GuiApp {
                     });
                     ui.vertical(|ui| {
                         ui.heading("Partner data");
+                        if self.partners.len() < 0 {
+                            
+                        }else {
+                            if ui.button(RichText::new("Change partner").color(Color32::RED)).clicked() {
+                                self.change_partner = true;
+                            }
+                        }
                         ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.partner.partner_name))
                             .on_hover_text("Partner name");
                         ui.add(egui::TextEdit::singleline(&mut self.latest_invoice.invoice.partner.partner_address))
@@ -766,26 +881,7 @@ impl Data for GuiApp {
                 }); 
                 
                 if self.add_service {
-                    egui::Window::new("Add a service")
-                        .collapsible(false)
-                        .resizable(false)
-                        .min_width(500.0)
-                        .min_height(500.0)
-                        .show(ctx, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label("What kind of service do you want to add?");
-                                if ui
-                                    .button("Create a blank service!")
-                                    .on_hover_text("Create a blank service with no data")
-                                    .clicked()
-                                {
-                                    let new_service = Service::default();
-                                    self.latest_invoice.invoice.services.push(new_service);
-                                    // self.service_count += 1;
-                                    self.add_service = false;
-                                }
-                            })
-                        });
+                    self.render_add_service(ctx);
                 }
                 
             });
@@ -901,13 +997,13 @@ impl Data for GuiApp {
                 ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                     ui.vertical(|ui| {
                         ui.heading("Partner data");
-                        ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_name))
+                        ui.add(egui::TextEdit::singleline(&mut self.empty_partner.partner_name))
                             .on_hover_text("Partner name");
-                        ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_iban))
+                        ui.add(egui::TextEdit::singleline(&mut self.empty_partner.partner_address))
                             .on_hover_text("Partner address");
-                         ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_postal_code))
+                         ui.add(egui::TextEdit::singleline(&mut self.empty_partner.partner_postal_code))
                             .on_hover_text("Partner postal code");
-                        ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_vat_id))
+                        ui.add(egui::TextEdit::singleline(&mut self.empty_partner.partner_vat_id))
                             .on_hover_text("Partner VAT");
                      
                         if ui.button("Create").clicked() {
@@ -931,20 +1027,25 @@ impl Data for GuiApp {
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
                     ui.vertical(|ui| {
-                        ui.add(egui::TextEdit::singleline(&mut self.empty_service.service_name))
+                        ui.add(egui::TextEdit::multiline(&mut self.empty_service.service_name))
                             .on_hover_text("Service Name");
+                        
 
-                        if ui.button("Create").clicked() {
+                        ui.horizontal(|ui| {
+                            if ui.button("Create").clicked() {
                             self.create_service = false;
                             self.save_service(self.empty_service.clone());
                             //Reset the value
                             self.empty_service = Service::default();
                         }
+                        ui.add_space(30.0);
                         if ui.button("Cancel").clicked() {
                             self.create_service = false;
                             //Reset the value
                             self.empty_service = Service::default();
                         }
+                        })
+                        
                     })
                 });
             })
@@ -994,6 +1095,12 @@ impl eframe::App for GuiApp  {
         }
         if self.create_service {
             self.render_create_service(ctx);
+        }
+        if self.change_company {
+            self.render_change_company(ctx);
+        }
+        if self.change_partner {
+            self.render_change_partner(ctx);
         }
         if self.create {
             self.render_create_invoice(ctx);
