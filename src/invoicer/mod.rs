@@ -66,11 +66,11 @@ pub struct Service {
     pub service_price: f64,
 }
 impl Service {
-    pub fn default(name: &str, quantity: i32, price: f64) -> Self {
+    pub fn default() -> Self {
         Self {
-            service_name: name.to_string(),
-            service_quantity: quantity,
-            service_price: price,
+            service_name: "".to_string(),
+            service_quantity: 1,
+            service_price: 0.0,
         }
     }
 }
@@ -147,7 +147,7 @@ impl Default for Invoice {
             company: Company::default(),
             invoice_tax: 0.0,
             invoice_reference: "0000".to_string(),
-            services: vec![Service::default("Service", 1, 0.0)],
+            services: vec![Service::default()],
             created_by: "Invoicer".to_string(),
             status: PaymentStatus::Unpaid,
         }
