@@ -28,8 +28,8 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 - [✔] Only Slovenian language support on the invoice template(FOR NOW)
 - [✔] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
 - [✔] No tax template which removes the all tax parts from the template
+- [✔] Custom user company , partner ,services (you cannot edit them for now)
 #### Upcoming features.
-- [❌] Custom user company , partner , services so you can select them instead of typing everything
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
 - [❌] Hopefully i can implement to convert PDF into JPG and save it to 
@@ -39,7 +39,7 @@ memory to show it in the gui instead of converting + saving it to the path of th
 
 ![alt text](https://i.imgur.com/pwrZ4Xj.png "PDF Viewer")
 ![alt text](https://i.imgur.com/No2S5RC.png "Invoice Creation") 
-![alt text](https://i.imgur.com/zxizbv3.png "Logo Title Text 1")
+![alt text](https://i.imgur.com/2x5kPi6.png "Logo Title Text 1")
 
 # Invoice template
 
