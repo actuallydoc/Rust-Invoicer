@@ -649,9 +649,7 @@ impl Data for GuiApp {
                     ui.vertical(|ui| {
                         
                         ui.heading("Company data");
-                        if self.companies.len() < 0 {
-                            
-                        }else {
+                        if self.companies.len() > 0 {
                             if ui.button(RichText::new("Change company").color(Color32::RED)).clicked() {
                                 self.change_company = true;
                             }
@@ -685,10 +683,8 @@ impl Data for GuiApp {
                     });
                     ui.vertical(|ui| {
                         ui.heading("Partner data");
-                        if self.partners.len() < 0 {
-                            
-                        }else {
-                            if ui.button(RichText::new("Change partner").color(Color32::RED)).clicked() {
+                        if self.partners.len() > 0 {
+                              if ui.button(RichText::new("Change partner").color(Color32::RED)).clicked() {
                                 self.change_partner = true;
                             }
                         }
@@ -798,9 +794,7 @@ impl Data for GuiApp {
                     ui.vertical(|ui| {
                         
                         ui.heading("Company data");
-                        if self.companies.len() < 0 {
-                            
-                        }else {
+                        if self.companies.len() > 0 {
                             if ui.button(RichText::new("Change company").color(Color32::RED)).clicked() {
                                 self.change_company = true;
                             }
@@ -834,9 +828,7 @@ impl Data for GuiApp {
                     });
                     ui.vertical(|ui| {
                         ui.heading("Partner data");
-                        if self.partners.len() < 0 {
-                            
-                        }else {
+                        if self.partners.len() > 0 {
                             if ui.button(RichText::new("Change partner").color(Color32::RED)).clicked() {
                                 self.change_partner = true;
                             }
@@ -974,17 +966,21 @@ impl Data for GuiApp {
                         //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
                         ui.add(egui::TextEdit::singleline(&mut self.empty_company.company_signature))
                             .on_hover_text("Company signature");   
-                        if ui.button("Create").clicked() {
+
+                        ui.horizontal(|ui| {
+                            if ui.button("Create").clicked() {
                             self.create_company = false;
                             self.save_company(self.empty_company.clone());
                             //Reset the value
                             self.empty_company = Company::default();
                         }
+                        ui.add_space(10.0);
                         if ui.button("Cancel").clicked() {
                             self.create_company = false;
                             //Reset the value
                             self.empty_company = Company::default();
                         }
+                        })
                     })
                 });
             })
@@ -1004,19 +1000,23 @@ impl Data for GuiApp {
                             .on_hover_text("Partner postal code");
                         ui.add(egui::TextEdit::singleline(&mut self.empty_partner.partner_vat_id))
                             .on_hover_text("Partner VAT");
-                     
-                        if ui.button("Create").clicked() {
+                        
+                        ui.horizontal(|ui| {
+                            if ui.button("Create").clicked() {
                             self.create_partner = false;
                             self.save_partner(self.empty_partner.clone());
                             //Reset the value
                             self.empty_partner = Partner::default();
                         }
+                        ui.add_space(10.0);
                         if ui.button("Cancel").clicked() {
                             self.create_partner = false;
                             //Reset the value
                             self.empty_partner = Partner::default();
                         }
-                    })
+                    }) 
+                })
+                       
                 });
             })
         });
@@ -1037,7 +1037,7 @@ impl Data for GuiApp {
                             //Reset the value
                             self.empty_service = Service::default();
                         }
-                        ui.add_space(30.0);
+                        ui.add_space(10.0);
                         if ui.button("Cancel").clicked() {
                             self.create_service = false;
                             //Reset the value
