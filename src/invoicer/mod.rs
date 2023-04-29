@@ -167,7 +167,6 @@ impl Default for InvoiceStructure {
 }
 
 impl Racun {
-
     pub fn default() -> Self {
         Self {
             invoice: Invoice::default(),
@@ -279,9 +278,9 @@ pub fn render_summary_table(
         layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
 
         layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
-    
+
         layer.use_text("DDV", 9.0, tax_difference_x, y, bold_font);
-    
+
         layer.use_text("Znesek z DDV", 9.0, total_price_x, y, bold_font);
         y -= Mm(4.0);
         layer.use_text(
@@ -298,7 +297,7 @@ pub fn render_summary_table(
             y,
             standard_font,
         );
-    
+
         layer.use_text(
             format!(
                 "{:.2?}{}",
@@ -352,8 +351,8 @@ pub fn render_service(
     let ddv_x = Mm(165.0);
     //Formated text add a percentage sign to the service_tax string
     if invoice.invoice.invoice_tax > 0.0 {
-    let formated_vat = format!("{}%", invoice.invoice.invoice_tax);
-    layer.use_text(formated_vat, 9.0, ddv_x, y, font);
+        let formated_vat = format!("{}%", invoice.invoice.invoice_tax);
+        layer.use_text(formated_vat, 9.0, ddv_x, y, font);
     }
     //Render service price
     //Always a constant
@@ -395,9 +394,8 @@ pub fn render_table_contents(
     let mut total_price = 0.0;
     //Render services with the lines above
     for service in racun.invoice.services.iter() {
-        
         total_price += service.service_price * (service.service_quantity as f64);
-        let (new_x, new_y) = render_service(x, y, layer, standard_font, racun,service);
+        let (new_x, new_y) = render_service(x, y, layer, standard_font, racun, service);
         x = new_x;
         y = new_y;
     }
@@ -534,10 +532,7 @@ pub fn render_partner_header(
 
     //Partner tax number
     layer.use_text(
-        format!(
-            "ID za DDV kupca: {}",
-            racun.invoice.partner.partner_vat_id
-        ),
+        format!("ID za DDV kupca: {}", racun.invoice.partner.partner_vat_id),
         racun.config.font_sizes.small,
         Mm(15.0),
         Mm(202.0),
@@ -621,10 +616,13 @@ pub fn render_company_header(
         Mm(247.0),
         standard_font,
     );
-    
+
     //Invoice number
     layer.use_text(
-        format!("Račun št: {}-{}", racun.invoice.invoice_number, current_year),
+        format!(
+            "Račun št: {}-{}",
+            racun.invoice.invoice_number, current_year
+        ),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(243.0),
@@ -719,15 +717,12 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
                 racun.invoice.invoice_number.parse::<i32>().unwrap(),
             ) {
                 Ok(_) => {
-                  
                     save_to_json(racun);
-                  
                 }
                 Err(e) => println!("Error saving invoice image: {}", e),
             }
         }
         None => {
-           
             //Return an option of dyn error
             return Err(Box::new(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -755,7 +750,6 @@ pub fn save_to_json(racun: &Racun) {
         //Write the json string to the file
         let mut file = File::create(invoice_json).unwrap();
         file.write_all(json.as_bytes()).unwrap();
-       
     } else {
         panic!("The invoice number directory doesn't exist");
     }
@@ -770,7 +764,6 @@ pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf
 
     if !invoice_dir.exists() {
         fs::create_dir(invoice_dir).expect("Couldn't create directory(It might already exist?)");
-        
     }
     if invoice_number_dir.exists() {
         None
@@ -780,7 +773,7 @@ pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf
             invoice_number_dir.join(format!("racun {}.pdf", racun.invoice.invoice_number));
         doc.save(&mut BufWriter::new(File::create(&pdf_path).unwrap()))
             .expect("Couldn't save pdf file");
-       
+
         Some((pdf_path, invoice_number_dir))
     }
 }

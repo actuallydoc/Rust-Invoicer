@@ -342,6 +342,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4cbbc9d0964165b47557570cce6c952866c2678457aca742aafc9fb771d30270"
 
 [[package]]
+name = "base64"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
+
+[[package]]
 name = "bindgen"
 version = "0.63.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -854,10 +860,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "dirs-next"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
+dependencies = [
+ "cfg-if",
+ "dirs-sys-next",
+]
+
+[[package]]
 name = "dirs-sys"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b1d1d91c932ef41c0f2663aa8b0ca0342d444d842c06914aa0a7e352d0bada6"
+dependencies = [
+ "libc",
+ "redox_users",
+ "winapi",
+]
+
+[[package]]
+name = "dirs-sys-next"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
 dependencies = [
  "libc",
  "redox_users",
@@ -921,7 +948,7 @@ dependencies = [
  "glutin-winit",
  "js-sys",
  "percent-encoding",
- "raw-window-handle",
+ "raw-window-handle 0.5.0",
  "thiserror",
  "tracing",
  "wasm-bindgen",
@@ -1353,7 +1380,7 @@ dependencies = [
  "libloading",
  "objc",
  "once_cell",
- "raw-window-handle",
+ "raw-window-handle 0.5.0",
  "wayland-sys 0.30.1",
  "windows-sys 0.36.1",
  "x11-dl",
@@ -1367,7 +1394,7 @@ checksum = "629a873fc04062830bfe8f97c03773bcd7b371e23bcc465d0a61448cd1588fa4"
 dependencies = [
  "cfg_aliases",
  "glutin",
- "raw-window-handle",
+ "raw-window-handle 0.5.0",
  "winit",
 ]
 
@@ -1788,6 +1815,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "native-dialog"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ab637f328b31bd0855c43bd38a4a4455e74324d9e74e0aac6a803422f43abc6"
+dependencies = [
+ "block",
+ "cocoa",
+ "dirs-next",
+ "objc",
+ "objc-foundation",
+ "objc_id",
+ "once_cell",
+ "raw-window-handle 0.4.3",
+ "thiserror",
+ "wfd",
+ "which",
+ "winapi",
+]
+
+[[package]]
 name = "ndk"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1797,7 +1844,7 @@ dependencies = [
  "jni-sys",
  "ndk-sys",
  "num_enum",
- "raw-window-handle",
+ "raw-window-handle 0.5.0",
  "thiserror",
 ]
 
@@ -2276,6 +2323,15 @@ dependencies = [
 
 [[package]]
 name = "raw-window-handle"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b800beb9b6e7d2df1fe337c9e3d04e3af22a124460fb4c30fcc22c9117cefb41"
+dependencies = [
+ "cty",
+]
+
+[[package]]
+name = "raw-window-handle"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed7e3d950b66e19e0c372f3fa3fbbcf85b1746b571f74e0c2af6042a5c93420a"
@@ -2355,12 +2411,14 @@ checksum = "456c603be3e8d448b072f410900c09faf164fbce2d480456f50eea6e25f9c848"
 name = "rust_pdf"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "chrono",
  "eframe",
  "egui",
  "egui_extras",
  "image",
  "json",
+ "native-dialog",
  "pdfium-render",
  "printpdf",
  "rand",
@@ -3259,7 +3317,7 @@ dependencies = [
  "log",
  "ndk-context",
  "objc",
- "raw-window-handle",
+ "raw-window-handle 0.5.0",
  "url",
  "web-sys",
 ]
@@ -3269,6 +3327,16 @@ name = "weezl"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9193164d4de03a926d909d3bc7c30543cecb35400c02114792c2cae20d5e2dbb"
+
+[[package]]
+name = "wfd"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e713040b67aae5bf1a0ae3e1ebba8cc29ab2b90da9aa1bff6e09031a8a41d7a8"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "which"
@@ -3559,7 +3627,7 @@ dependencies = [
  "once_cell",
  "orbclient",
  "percent-encoding",
- "raw-window-handle",
+ "raw-window-handle 0.5.0",
  "redox_syscall 0.3.5",
  "sctk-adwaita",
  "smithay-client-toolkit",
