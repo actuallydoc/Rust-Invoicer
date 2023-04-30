@@ -29,6 +29,7 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 - [✔] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
 - [✔] No tax template which removes the all tax parts from the template
 - [✔] Custom user company , partner ,services (you cannot edit them for now)
+- [/] PDF Sign feature(It would work if the printpdf crate would support placing the image anywhere on the page(everything is implemented just the rendering is not))
 #### Upcoming features.
 - [❌] Converting everything fully to database
 - [❌] PDF Sign feature
