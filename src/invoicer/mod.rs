@@ -7,7 +7,7 @@ use std::{
     fmt::Display,
     fs::{self, File},
     io::{BufWriter, Write},
-    path::PathBuf,
+    path::{PathBuf, Path},
 };
 
 use crate::render::export_pdf_to_jpegs;
@@ -214,11 +214,12 @@ pub fn render_payment_footer(
     layer: &PdfLayerReference,
     racun: &Racun,
     standard_font: &IndirectFontRef,
+    path: Option<&Path>,
     y: Mm,
 ) -> Mm {
     let current_year = chrono::Utc::now().year();
     let mut y = y - Mm(10.0);
-    let base_x = Mm(15.0);
+    let mut base_x = Mm(15.0);
     layer.use_text(
         format!(
             "Sklic za številko: {}00-{:04}-{}",
@@ -252,7 +253,36 @@ pub fn render_payment_footer(
         y,
         standard_font,
     );
-
+    y -= Mm(3.0);
+    base_x = base_x + Mm(120.0);
+    //Also add the image the the bottom and "Signature text"
+    layer.use_text("Žig:", 9.0, base_x, y, standard_font);
+    //TODO Managed to get the image to work, but idk how to place it to x and y on the page
+    if path.is_some() {
+    let mut image_file = File::open(&path.unwrap()).unwrap();
+    use ::image::io::Reader as ImageReader;
+    let image = ImageReader::open(&path.unwrap()).unwrap().decode().unwrap();
+    let mut image_file_2 = ImageXObject {
+        width: Px(image.width()  as usize / 2),
+        height: Px(image.height()  as usize / 2),
+        color_space: ColorSpace::Rgba,
+        bits_per_component: ColorBits::Bit8,
+        interpolate: true,
+        /* put your bytes here. Make sure the total number of bytes =
+           width * height * (bytes per component * number of components)
+           (e.g. 2 (bytes) x 3 (colors) for RGB 16bit) */
+        image_data: image.into_bytes(),
+        image_filter: None, /* does not work yet */
+        clipping_bbox: None, /* doesn't work either, untested */
+    };
+    }
+    //TODO Managed to get the image to work, but idk how to place it to x and y on the page
+    // let image2 = Image::from(image_file_2);
+    // image2.add_to_layer(layer.clone(), ImageTransform {
+    //     translate_x: Some(base_x + Mm(120.0)),
+    //     translate_y: Some(y - Mm(3.0)),
+    //     ..Default::default()
+    // });
     y
 }
 
@@ -668,7 +698,7 @@ pub fn render_invoice_header(
         standard_font,
     );
 }
-pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
+pub fn init(racun: &Racun, sig_path: Option<&Path>) -> Result<(), Box<dyn Error>> {
     let (doc, page1, layer1) = PdfDocument::new(
         racun.invoice.invoice_number.to_string(),
         Mm(210.0), //Page size A4
@@ -703,7 +733,7 @@ pub fn init(racun: &Racun) -> Result<(), Box<dyn Error>> {
     );
 
     //Make payment footer
-    let y = render_payment_footer(&current_layer, racun, &standard_font, y);
+    let y = render_payment_footer(&current_layer, racun, &standard_font, sig_path, y);
     render_footer(&current_layer, racun, &standard_font, y);
     //Save pdf entry and return the path to the pdf file
     let path = save_invoice(doc, racun);

@@ -3,14 +3,15 @@ use crate::invoicer::{init, Company, Partner, Racun, Service};
 
 use eframe::egui;
 use eframe::{self, IconData};
-use egui::{widgets, Align, Color32, Layout, TextureHandle};
+use egui::{widgets, Align, Color32, Layout, TextureHandle, TextureId};
 use egui::{RichText, Vec2};
 use fs::File;
 use image::Frame;
+use native_dialog::{self, FileDialog, MessageDialog, MessageType};
 use std::fmt::format;
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::{env, thread};
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
@@ -27,6 +28,8 @@ struct GuiApp {
     refresh: bool,
     create: bool,
     edit: bool,
+    selected_signature: Option<String>,
+    signature_path: Option<PathBuf>,
     clicked_invoice: Racun,
     latest_invoice: Racun,
     add_service: bool,
@@ -94,6 +97,8 @@ impl Data for GuiApp {
             refresh: false,
             create: false,
             edit: false,
+            selected_signature: None,
+            signature_path: None,
             latest_invoice: Racun::default(),
             add_service: false,
             clicked_invoice: Racun::default(),
@@ -264,16 +269,30 @@ impl Data for GuiApp {
         };
     }
     fn generate_pdf(&mut self, invoice: Racun) -> bool {
+        print!("Generating pdf...");
+        let temp_path = self.signature_path.clone();
         let handle = thread::spawn(move || {
             let mut state = false;
-            match init(&invoice) {
+            if temp_path.is_some() {
+                match init(&invoice, Some(&temp_path.unwrap())) {
                 Ok(_) => {
                     state = true;
                 }
                 Err(_err) => {
                     state = false;
                 }
-            };
+            }
+            }else {
+                match init(&invoice, None) {
+                    Ok(_) => {
+                        state = true;
+                    }
+                    Err(_err) => {
+                        state = false;
+                    }
+            }
+            } 
+            
             state
         });
         let result = handle.join().unwrap();
@@ -925,6 +944,41 @@ impl Data for GuiApp {
                                 &mut self.latest_invoice.invoice.company.company_signature,
                             ))
                             .on_hover_text("Company signature");
+                            if self.selected_signature.is_some() {
+                                ui.label(format!("Selected signature: {:#?}", self.signature_path.clone().unwrap()));
+                                
+                            }else {
+                                ui.label("No signature selected!");
+                            }
+                            if ui.button("Change signature").clicked() {
+                                let path = FileDialog::new()
+                                    .set_location("~/Desktop")
+                                    .add_filter("PNG Image", &["png"])
+                                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                                    .show_open_single_file()
+                                    .unwrap();
+                                let path = match path {
+                                    Some(path) => path,
+                                    None => return,
+                                };
+
+                                let yes = MessageDialog::new()
+                                    .set_type(MessageType::Info)
+                                    .set_title("Do you want to open the file?")
+                                    .set_text(&format!("{:#?}", path))
+                                    .show_confirm()
+                                    .unwrap();
+
+                                if yes {
+                                    println!("Opening file...");
+                                    println!("{}", format!("{:#?}", path));
+                                    let base_string= image_base64::to_base64(path.as_os_str().to_str().unwrap());
+                                    self.selected_signature = Some(base_string);
+                                    self.signature_path = Some(path);
+
+                                }
+                            }
+                          
                         });
                         ui.vertical(|ui| {
                             ui.heading("Partner data");
@@ -1121,7 +1175,7 @@ impl Data for GuiApp {
                                 &mut self.empty_company.company_signature,
                             ))
                             .on_hover_text("Company signature");
-
+                            if ui.button("Change signature").clicked() {}
                             ui.horizontal(|ui| {
                                 if ui.button("Create").clicked() {
                                     self.create_company = false;
