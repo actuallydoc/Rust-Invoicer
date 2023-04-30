@@ -726,12 +726,43 @@ impl Data for GuiApp {
                                 &mut self.clicked_invoice.invoice.company.company_currency,
                             ))
                             .on_hover_text("Company currency");
-
+                            ui.add_space(10.0);
                             //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
-                            ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_signature,
-                            ))
-                            .on_hover_text("Company signature");
+                            if self.clicked_invoice.invoice.company.company_signature_path.is_some() {
+                                ui.label(format!("Signature: {}", self.clicked_invoice.invoice.company.company_signature_path.clone().unwrap().as_path().display()));
+                            }else {
+                                ui.label("Signature is not set!");
+                            }
+                           
+                            if ui.button("Change signature").clicked() {
+                                let path = FileDialog::new()
+                                    .set_location("~/Desktop")
+                                    .add_filter("PNG Image", &["png"])
+                                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                                    .show_open_single_file()
+                                    .unwrap();
+                                let path = match path {
+                                    Some(path) => path,
+                                    None => return,
+                                };
+
+                                let yes = MessageDialog::new()
+                                    .set_type(MessageType::Info)
+                                    .set_title("Do you want to open the file?")
+                                    .set_text(&format!("{:#?}", path))
+                                    .show_confirm()
+                                    .unwrap();
+
+                                if yes {
+                                    println!("Opening file...");
+                                    println!("{}", format!("{:#?}", path));
+                                    let base_string= image_base64::to_base64(path.as_os_str().to_str().unwrap());
+                                    self.selected_signature = Some(base_string);
+                                    self.signature_path = Some(path.clone());
+                                    self.clicked_invoice.invoice.company.company_signature_path = Some(path);
+
+                                }
+                            }
                         });
                         ui.vertical(|ui| {
                             ui.heading("Partner data");
@@ -939,11 +970,6 @@ impl Data for GuiApp {
                             ))
                             .on_hover_text("Company currency");
 
-                            //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
-                            ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_signature,
-                            ))
-                            .on_hover_text("Company signature");
                             if self.selected_signature.is_some() {
                                 ui.label(format!("Selected signature: {:#?}", self.signature_path.clone().unwrap()));
                                 
@@ -974,7 +1000,8 @@ impl Data for GuiApp {
                                     println!("{}", format!("{:#?}", path));
                                     let base_string= image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
-                                    self.signature_path = Some(path);
+                                    self.signature_path = Some(path.clone());
+                                    self.latest_invoice.invoice.company.company_signature_path = Some(path);
 
                                 }
                             }
@@ -1170,11 +1197,6 @@ impl Data for GuiApp {
                             ))
                             .on_hover_text("Company currency");
 
-                            //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
-                            ui.add(egui::TextEdit::singleline(
-                                &mut self.empty_company.company_signature,
-                            ))
-                            .on_hover_text("Company signature");
                             if ui.button("Change signature").clicked() {}
                             ui.horizontal(|ui| {
                                 if ui.button("Create").clicked() {

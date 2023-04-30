@@ -87,7 +87,8 @@ pub struct Company {
     pub company_swift: String,
     pub company_registration_number: String,
     pub company_phone: String,
-    pub company_signature: String, //Base64 string
+    pub company_signature: Option<String>, 
+    pub company_signature_path: Option<PathBuf>,//Base64 string
     pub company_vat_rate: f64,
     pub company_business_registered_at: String,
 }
@@ -104,7 +105,8 @@ impl Company {
             company_swift: "000000000".to_string(),
             company_registration_number: "00000000000000000000".to_string(),
             company_phone: "000000000".to_string(),
-            company_signature: "000000000".to_string(),
+            company_signature_path: None,
+            company_signature: None,
             company_vat_rate: 0.0,
             company_business_registered_at: "000000000".to_string(),
         }
