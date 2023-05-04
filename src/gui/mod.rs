@@ -3,6 +3,7 @@ use crate::invoicer::{init, Company, Partner, Racun, Service};
 
 use eframe::egui;
 use eframe::{self, IconData};
+use egui::emath::Numeric;
 use egui::{widgets, Align, Color32, Layout, TextureHandle, TextureId};
 use egui::{RichText, Vec2};
 use fs::File;
@@ -11,7 +12,7 @@ use native_dialog::{self, FileDialog, MessageDialog, MessageType};
 use std::fmt::format;
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::{Read, Write};
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::{env, thread};
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
@@ -32,12 +33,18 @@ struct GuiApp {
     signature_path: Option<PathBuf>,
     clicked_invoice: Racun,
     latest_invoice: Racun,
+    clicked_company: Company,
+    clicked_partner: Partner,
+    clicked_service: Service,
     add_service: bool,
-    create_partner: bool,
+    manage_partners: bool,
     edit_partner: bool,
+    manage_companies: bool,
     create_company: bool,
-    edit_company: bool,
+    create_partner: bool,
     create_service: bool,
+    edit_company: bool,
+    manage_services: bool,
     edit_service: bool,
     empty_company: Company,
     empty_partner: Partner,
@@ -79,10 +86,21 @@ trait Data {
     fn render_add_service(&mut self, ctx: &egui::Context);
     fn render_change_partner(&mut self, ctx: &egui::Context);
     fn render_change_company(&mut self, ctx: &egui::Context);
+
+    fn render_manage_companies(&mut self, ctx: &egui::Context);
+    fn render_manage_partners(&mut self, ctx: &egui::Context);
+    fn render_manage_services(&mut self, ctx: &egui::Context);
+
+    fn render_edit_company(&mut self, ctx: &egui::Context);
+    fn render_edit_partner(&mut self, ctx: &egui::Context);
+    fn render_edit_service(&mut self, ctx: &egui::Context);
 }
 impl Data for GuiApp {
     fn new() -> Self {
         let mut this = Self {
+            clicked_company: Company::default(),
+            clicked_partner: Partner::default(),
+            clicked_service: Service::default(),
             allowed_to_close: false,
             clicked_pdf_path: PathBuf::new(),
             show_confirmation_dialog: false,
@@ -97,16 +115,19 @@ impl Data for GuiApp {
             refresh: false,
             create: false,
             edit: false,
+            create_company: false,
+            create_partner: false,
+            create_service: false,
             selected_signature: None,
             signature_path: None,
             latest_invoice: Racun::default(),
             add_service: false,
             clicked_invoice: Racun::default(),
-            create_company: false,
+            manage_companies: false,
             edit_company: false,
-            create_partner: false,
+            manage_partners: false,
             edit_partner: false,
-            create_service: false,
+            manage_services: false,
             edit_service: false,
             empty_company: Company::default(),
             empty_partner: Partner::default(),
@@ -275,14 +296,14 @@ impl Data for GuiApp {
             let mut state = false;
             if temp_path.is_some() {
                 match init(&invoice, Some(&temp_path.unwrap())) {
-                Ok(_) => {
-                    state = true;
+                    Ok(_) => {
+                        state = true;
+                    }
+                    Err(_err) => {
+                        state = false;
+                    }
                 }
-                Err(_err) => {
-                    state = false;
-                }
-            }
-            }else {
+            } else {
                 match init(&invoice, None) {
                     Ok(_) => {
                         state = true;
@@ -290,9 +311,9 @@ impl Data for GuiApp {
                     Err(_err) => {
                         state = false;
                     }
+                }
             }
-            } 
-            
+
             state
         });
         let result = handle.join().unwrap();
@@ -359,7 +380,150 @@ impl Data for GuiApp {
                 });
             });
     }
+    fn render_manage_companies(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Company dashboard")
+            .resizable(true)
+            .collapsible(true)
+            .movable(true)
+            .show(ctx, |ui| {
+                egui::Grid::new("company_grid").show(ui, |ui| {
+                    let mut edit = None;
+                    if self.companies.is_empty() {
+                        if ui.button("Create company!").clicked() {
+                            self.create_company = true;
+                        }
+                    } else {
+                        ui.colored_label(CYAN, "Company name");
+                        ui.colored_label(CYAN, "Company address");
+                        ui.colored_label(CYAN, "Company postal code");
+                        ui.colored_label(CYAN, "Company VAT ID");
+                        ui.colored_label(CYAN, "Company Phone");
+                        ui.colored_label(CYAN, "Actions");
+                        ui.end_row();
+                        for company in self.companies.clone() {
+                            ui.label(company.company_name.clone());
+                            ui.label(company.company_address.clone());
+                            ui.label(company.company_postal_code.clone());
+                            ui.label(company.company_vat_id.clone());
+                            ui.label(company.company_phone.clone());
+                            if ui.button("Edit").clicked() {
+                                edit = Some(company.clone());
+                            }
+                            if ui.button("Delete").clicked() {
+                                self.companies.remove(
+                                    self.companies.iter().position(|x| x == &company).unwrap(),
+                                );
+                            }
+                            ui.end_row();
+                        }
 
+                        if edit.is_some() {
+                            self.clicked_company = edit.unwrap();
+                            self.edit_company = true;
+                        }
+                        ui.vertical(|ui| {
+                            ui.add_space(15.0);
+                            if ui.button("Create").clicked() {
+                                self.create_company = true;
+                            }
+                            ui.add_space(15.0);
+                            if ui.button("Close").clicked() {
+                                self.manage_companies = false;
+                            }
+                        });
+                    }
+                })
+            });
+    }
+    fn render_manage_partners(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Partner Dashboard").show(ctx, |ui| {
+            ui.vertical(|ui| {
+                egui::Grid::new("company_grid").show(ui, |ui| {
+                    if self.partners.is_empty() {
+                        if ui.button("Create partner!").clicked() {
+                            self.create_partner = true;
+                        }
+                    } else {
+                        ui.colored_label(CYAN, "Partner name");
+                        ui.colored_label(CYAN, "Partner address");
+                        ui.colored_label(CYAN, "Partner postal code");
+                        ui.colored_label(CYAN, "Partner VAT ID");
+                        ui.colored_label(CYAN, "Actions");
+                        ui.end_row();
+                        for partner in self.partners.clone() {
+                            ui.label(partner.partner_name.clone());
+                            ui.label(partner.partner_address.clone());
+                            ui.label(partner.partner_postal_code.clone());
+                            ui.label(partner.partner_vat_id.clone());
+                            if ui.button("Edit").clicked() {
+                                todo!("Edit partner window")
+                            }
+                            if ui.button("Delete").clicked() {
+                                self.partners.remove(
+                                    self.partners.iter().position(|x| x == &partner).unwrap(),
+                                );
+                            }
+                            ui.end_row();
+                        }
+                        ui.vertical(|ui| {
+                            ui.add_space(15.0);
+                            if ui.button("Create").clicked() {
+                                self.create_partner = true;
+                            }
+
+                            ui.add_space(15.0);
+                            if ui.button("Close").clicked() {
+                                self.manage_partners = false;
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    fn render_manage_services(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Services Dashboard").show(ctx, |ui| {
+            ui.vertical(|ui| {
+                if self.services.is_empty() {
+                    if ui.button("No services found create one!").clicked() {
+                        self.create_service = true;
+                    }
+                } else {
+                    egui::Grid::new("service_grid").show(ui, |ui| {
+                        ui.colored_label(CYAN, "Service name");
+                        ui.colored_label(CYAN, "Service price");
+                        ui.colored_label(CYAN, "Actions");
+                        ui.end_row();
+                        for services in self.services.clone() {
+                            ui.label(services.service_name.clone());
+                            ui.label(services.service_price.to_string());
+                            if ui.button("Edit").clicked() {
+                                todo!("Edit service window")
+                            }
+                            if ui.button("Delete").clicked() {
+                                self.services.remove(
+                                    self.services.iter().position(|x| x == &services).unwrap(),
+                                );
+                            }
+                            ui.end_row();
+                        }
+                        ui.vertical(|ui| {
+                            ui.add_space(15.0);
+                            if ui.button("Create").clicked() {
+                                self.create_service = true;
+                            }
+
+                            ui.add_space(15.0);
+                            if ui.button("Close").clicked() {
+                                self.manage_services = false;
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    }
     fn render_change_company(&mut self, ctx: &egui::Context) {
         egui::Window::new("Change company").show(ctx, |ui| {
             ui.vertical(|ui| {
@@ -386,12 +550,12 @@ impl Data for GuiApp {
                 }
                 ui.add_space(20.0);
                 if ui.button("Create a new company").clicked() {
-                    self.change_company = false;
+                    self.create_company = false;
                     self.create_company = true;
                 }
                 ui.add_space(10.00);
                 if ui.button("Exit").clicked() {
-                    self.change_company = false;
+                    self.create_company = false;
                 }
             })
         });
@@ -500,24 +664,24 @@ impl Data for GuiApp {
             }
             ui.add_space(PADDING);
             if ui
-                .button(RichText::new("Add Company").color(Color32::GRAY))
+                .button(RichText::new("Manage Company").color(Color32::GRAY))
                 .clicked()
             {
-                self.create_company = true;
+                self.manage_companies = true;
             }
             ui.add_space(PADDING);
             if ui
-                .button(RichText::new("Add Partner").color(Color32::GRAY))
+                .button(RichText::new("Manage Partners").color(Color32::GRAY))
                 .clicked()
             {
-                self.create_partner = true;
+                self.manage_partners = true;
             }
             ui.add_space(PADDING);
             if ui
-                .button(RichText::new("Add Service").color(Color32::GRAY))
+                .button(RichText::new("Manage Services").color(Color32::GRAY))
                 .clicked()
             {
-                self.create_service = true;
+                self.manage_services = true;
             }
         });
         ui.add_space(PADDING);
@@ -728,12 +892,28 @@ impl Data for GuiApp {
                             .on_hover_text("Company currency");
                             ui.add_space(10.0);
                             //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
-                            if self.clicked_invoice.invoice.company.company_signature_path.is_some() {
-                                ui.label(format!("Signature: {}", self.clicked_invoice.invoice.company.company_signature_path.clone().unwrap().as_path().display()));
-                            }else {
+                            if self
+                                .clicked_invoice
+                                .invoice
+                                .company
+                                .company_signature_path
+                                .is_some()
+                            {
+                                ui.label(format!(
+                                    "Signature: {}",
+                                    self.clicked_invoice
+                                        .invoice
+                                        .company
+                                        .company_signature_path
+                                        .clone()
+                                        .unwrap()
+                                        .as_path()
+                                        .display()
+                                ));
+                            } else {
                                 ui.label("Signature is not set!");
                             }
-                           
+
                             if ui.button("Change signature").clicked() {
                                 let path = FileDialog::new()
                                     .set_location("~/Desktop")
@@ -756,11 +936,12 @@ impl Data for GuiApp {
                                 if yes {
                                     println!("Opening file...");
                                     println!("{}", format!("{:#?}", path));
-                                    let base_string= image_base64::to_base64(path.as_os_str().to_str().unwrap());
+                                    let base_string =
+                                        image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
                                     self.signature_path = Some(path.clone());
-                                    self.clicked_invoice.invoice.company.company_signature_path = Some(path);
-
+                                    self.clicked_invoice.invoice.company.company_signature_path =
+                                        Some(path);
                                 }
                             }
                         });
@@ -971,9 +1152,11 @@ impl Data for GuiApp {
                             .on_hover_text("Company currency");
 
                             if self.selected_signature.is_some() {
-                                ui.label(format!("Selected signature: {:#?}", self.signature_path.clone().unwrap()));
-                                
-                            }else {
+                                ui.label(format!(
+                                    "Selected signature: {:#?}",
+                                    self.signature_path.clone().unwrap()
+                                ));
+                            } else {
                                 ui.label("No signature selected!");
                             }
                             if ui.button("Change signature").clicked() {
@@ -998,14 +1181,14 @@ impl Data for GuiApp {
                                 if yes {
                                     println!("Opening file...");
                                     println!("{}", format!("{:#?}", path));
-                                    let base_string= image_base64::to_base64(path.as_os_str().to_str().unwrap());
+                                    let base_string =
+                                        image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
                                     self.signature_path = Some(path.clone());
-                                    self.latest_invoice.invoice.company.company_signature_path = Some(path);
-
+                                    self.latest_invoice.invoice.company.company_signature_path =
+                                        Some(path);
                                 }
                             }
-                          
                         });
                         ui.vertical(|ui| {
                             ui.heading("Partner data");
@@ -1197,7 +1380,35 @@ impl Data for GuiApp {
                             ))
                             .on_hover_text("Company currency");
 
-                            if ui.button("Change signature").clicked() {}
+                            if ui.button("Change signature").clicked() {
+                                let path = FileDialog::new()
+                                    .set_location("~/Desktop")
+                                    .add_filter("PNG Image", &["png"])
+                                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                                    .show_open_single_file()
+                                    .unwrap();
+                                let path = match path {
+                                    Some(path) => path,
+                                    None => PathBuf::new(),
+                                };
+
+                                let yes = MessageDialog::new()
+                                    .set_type(MessageType::Info)
+                                    .set_title("Do you want to open the file?")
+                                    .set_text(&format!("{:#?}", path))
+                                    .show_confirm()
+                                    .unwrap();
+
+                                if yes {
+                                    println!("Opening file...");
+                                    println!("{}", format!("{:#?}", path));
+                                    let base_string =
+                                        image_base64::to_base64(path.as_os_str().to_str().unwrap());
+                                    self.selected_signature = Some(base_string);
+                                    self.signature_path = Some(path.clone());
+                                    self.empty_company.company_signature_path = Some(path);
+                                }
+                            }
                             ui.horizontal(|ui| {
                                 if ui.button("Create").clicked() {
                                     self.create_company = false;
@@ -1272,7 +1483,11 @@ impl Data for GuiApp {
                                 &mut self.empty_service.service_name,
                             ))
                             .on_hover_text("Service Name");
-
+                            ui.add(widgets::Slider::new(
+                                &mut self.empty_service.service_price,
+                                0.0..=1000.0,
+                            ))
+                            .on_hover_text("Service Price");
                             ui.horizontal(|ui| {
                                 if ui.button("Create").clicked() {
                                     self.create_service = false;
@@ -1291,6 +1506,116 @@ impl Data for GuiApp {
                     });
                 })
             });
+    }
+
+    fn render_edit_company(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Edit company")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+                        ui.vertical(|ui| {
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_name,
+                            ))
+                            .on_hover_text("Company name");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_iban,
+                            ))
+                            .on_hover_text("Company IBAN");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_swift,
+                            ))
+                            .on_hover_text("Company SWIFT");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_bankname,
+                            ))
+                            .on_hover_text("Company Bank Name");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_address,
+                            ))
+                            .on_hover_text("Company address");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_postal_code,
+                            ))
+                            .on_hover_text("Company postal code");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_vat_id,
+                            ))
+                            .on_hover_text("Company VAT");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_phone,
+                            ))
+                            .on_hover_text("Company PHONE");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_registration_number,
+                            ))
+                            .on_hover_text("Company Registeration number");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_business_registered_at,
+                            ))
+                            .on_hover_text("Company Registered at");
+                            ui.add(egui::TextEdit::singleline(
+                                &mut self.clicked_company.company_currency,
+                            ))
+                            .on_hover_text("Company currency");
+                            ui.add_space(10.0);
+                            if ui.button("Change signature").clicked() {
+                                let path = FileDialog::new()
+                                    .set_location("~/Desktop")
+                                    .add_filter("PNG Image", &["png"])
+                                    .add_filter("JPEG Image", &["jpg", "jpeg"])
+                                    .show_open_single_file()
+                                    .unwrap();
+                                let path = match path {
+                                    Some(path) => path,
+                                    None => PathBuf::new(),
+                                };
+
+                                let yes = MessageDialog::new()
+                                    .set_type(MessageType::Info)
+                                    .set_title("Do you want to open the file?")
+                                    .set_text(&format!("{:#?}", path))
+                                    .show_confirm()
+                                    .unwrap();
+
+                                if yes {
+                                    println!("Opening file...");
+                                    println!("{}", format!("{:#?}", path));
+                                    let base_string =
+                                        image_base64::to_base64(path.as_os_str().to_str().unwrap());
+                                    self.selected_signature = Some(base_string);
+                                    self.signature_path = Some(path.clone());
+                                    self.clicked_company.company_signature_path = Some(path);
+                                }
+                            }
+                            ui.horizontal(|ui| {
+                                if ui.button("Edit").clicked() {
+                                    self.edit_company = false;
+                                    //Edit the invoice in the self.invoices vector
+                                    todo!("Locate and Edit the invoice in the self.invoices vector");
+                                    //Reset the value
+                                    self.clicked_company = Company::default();
+                                }
+                                ui.add_space(10.0);
+                                if ui.button("Cancel").clicked() {
+                                    self.edit_company = false;
+                                    //Reset the value
+                                    self.clicked_company = Company::default();
+                                }
+                            })
+                        });
+                    });
+                });
+            });
+    }
+
+    fn render_edit_partner(&mut self, ctx: &egui::Context) {
+        todo!()
+    }
+
+    fn render_edit_service(&mut self, ctx: &egui::Context) {
+        todo!()
     }
 }
 
@@ -1326,12 +1651,20 @@ impl eframe::App for GuiApp {
         if self.edit {
             self.render_edit_invoice(ctx);
         }
-
+        if self.manage_companies {
+            self.render_manage_companies(ctx);
+        }
         if self.create_company {
             self.render_create_company(ctx);
         }
         if self.create_partner {
             self.render_create_partner(ctx);
+        }
+        if self.manage_partners {
+            self.render_manage_partners(ctx);
+        }
+        if self.manage_services {
+            self.render_manage_services(ctx);
         }
         if self.create_service {
             self.render_create_service(ctx);
@@ -1345,6 +1678,16 @@ impl eframe::App for GuiApp {
         if self.create {
             self.render_create_invoice(ctx);
         }
+        if self.edit_company {
+            self.render_edit_company(ctx)
+        }
+        if self.edit_partner {
+            self.render_edit_partner(ctx);
+        }
+        if self.edit_service {
+            self.render_edit_service(ctx);
+        }
+
         if self.show_image {
             if self.texture.is_some() {
                 if let Some(texture) = &mut self.texture {

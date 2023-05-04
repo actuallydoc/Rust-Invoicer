@@ -7,7 +7,7 @@ use std::{
     fmt::Display,
     fs::{self, File},
     io::{BufWriter, Write},
-    path::{PathBuf, Path},
+    path::{Path, PathBuf},
 };
 
 use crate::render::export_pdf_to_jpegs;
@@ -87,8 +87,8 @@ pub struct Company {
     pub company_swift: String,
     pub company_registration_number: String,
     pub company_phone: String,
-    pub company_signature: Option<String>, 
-    pub company_signature_path: Option<PathBuf>,//Base64 string
+    pub company_signature: Option<String>,
+    pub company_signature_path: Option<PathBuf>, //Base64 string
     pub company_vat_rate: f64,
     pub company_business_registered_at: String,
 }
@@ -261,22 +261,22 @@ pub fn render_payment_footer(
     layer.use_text("Žig:", 9.0, base_x, y, standard_font);
     //TODO Managed to get the image to work, but idk how to place it to x and y on the page
     if path.is_some() {
-    let mut image_file = File::open(&path.unwrap()).unwrap();
-    use ::image::io::Reader as ImageReader;
-    let image = ImageReader::open(&path.unwrap()).unwrap().decode().unwrap();
-    let mut image_file_2 = ImageXObject {
-        width: Px(image.width()  as usize / 2),
-        height: Px(image.height()  as usize / 2),
-        color_space: ColorSpace::Rgba,
-        bits_per_component: ColorBits::Bit8,
-        interpolate: true,
-        /* put your bytes here. Make sure the total number of bytes =
-           width * height * (bytes per component * number of components)
-           (e.g. 2 (bytes) x 3 (colors) for RGB 16bit) */
-        image_data: image.into_bytes(),
-        image_filter: None, /* does not work yet */
-        clipping_bbox: None, /* doesn't work either, untested */
-    };
+        let mut image_file = File::open(&path.unwrap()).unwrap();
+        use ::image::io::Reader as ImageReader;
+        let image = ImageReader::open(&path.unwrap()).unwrap().decode().unwrap();
+        let mut image_file_2 = ImageXObject {
+            width: Px(image.width() as usize / 2),
+            height: Px(image.height() as usize / 2),
+            color_space: ColorSpace::Rgba,
+            bits_per_component: ColorBits::Bit8,
+            interpolate: true,
+            /* put your bytes here. Make sure the total number of bytes =
+            width * height * (bytes per component * number of components)
+            (e.g. 2 (bytes) x 3 (colors) for RGB 16bit) */
+            image_data: image.into_bytes(),
+            image_filter: None,  /* does not work yet */
+            clipping_bbox: None, /* doesn't work either, untested */
+        };
     }
     //TODO Managed to get the image to work, but idk how to place it to x and y on the page
     // let image2 = Image::from(image_file_2);
