@@ -531,14 +531,14 @@ impl Data for GuiApp {
                     ui.label("There are no companies, please create one");
                 } else {
                     egui::ComboBox::from_label("Select premade companies: ")
-                        .selected_text(format!("{:?}", self.temp_company.company_name))
+                        .selected_text(format!("{}", self.temp_company.company_name.to_string()))
                         .show_ui(ui, |ui| {
                             for company in self.companies.iter() {
                                 if ui
                                     .selectable_value(
                                         &mut self.temp_company,
                                         company.clone(),
-                                        format!("{:?}", company.company_name),
+                                        format!("{}", company.company_name.to_string()),
                                     )
                                     .clicked()
                                 {
@@ -555,7 +555,7 @@ impl Data for GuiApp {
                 }
                 ui.add_space(10.00);
                 if ui.button("Exit").clicked() {
-                    self.create_company = false;
+                    self.change_company = false;
                 }
             })
         });
@@ -568,14 +568,14 @@ impl Data for GuiApp {
                     ui.label("There are no partners in the database, please create one");
                 } else {
                     egui::ComboBox::from_label("Select premade partners: ")
-                        .selected_text(format!("{:?}", self.temp_partner.partner_name))
+                        .selected_text(format!("{}", self.temp_partner.partner_name.to_string()))
                         .show_ui(ui, |ui| {
                             for partner in self.partners.iter() {
                                 if ui
                                     .selectable_value(
                                         &mut self.temp_partner,
                                         partner.clone(),
-                                        format!("{:?}", partner.partner_name),
+                                        format!("{}", partner.partner_name.to_string()),
                                     )
                                     .clicked()
                                 {
@@ -623,10 +623,10 @@ impl Data for GuiApp {
                     ui.label("No premade services found in the database, please create one or choose blank!");
                 } else {
                 egui::ComboBox::from_label("Select premade services: ")
-                    .selected_text(format!("{:?}", self.temp_service.service_name))
+                    .selected_text(format!("{}", self.temp_service.service_name.to_string()))
                     .show_ui(ui, |ui| {
                         for service in self.services.iter() {
-                            if ui.selectable_value(&mut self.temp_service , service.clone(), format!("{:?}", service.service_name)).clicked() {
+                            if ui.selectable_value(&mut self.temp_service , service.clone(), format!("{}", service.service_name.to_string())).clicked() {
                                 self.latest_invoice.invoice.services.push(service.clone());
                                 self.add_service = false;
                             };
