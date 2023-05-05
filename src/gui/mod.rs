@@ -94,6 +94,7 @@ trait Data {
     fn render_edit_company(&mut self, ctx: &egui::Context);
     fn render_edit_partner(&mut self, ctx: &egui::Context);
     fn render_edit_service(&mut self, ctx: &egui::Context);
+    fn delete_invoice(&mut self, invoice: Racun);
 }
 impl Data for GuiApp {
     fn new() -> Self {
@@ -891,7 +892,6 @@ impl Data for GuiApp {
                             ))
                             .on_hover_text("Company currency");
                             ui.add_space(10.0);
-                            //*!TODO Add a file picker for the company logo and convert it to base64 when creating the invoice*/
                             if self
                                 .clicked_invoice
                                 .invoice
@@ -1071,6 +1071,8 @@ impl Data for GuiApp {
                             }
                         });
                         if ui.button("Edit").clicked() {
+                            //Locate the index
+                            self.delete_invoice(self.clicked_invoice.clone());
                             self.generate_pdf(self.clicked_invoice.clone());
                             self.edit = false;
                         }
@@ -1593,8 +1595,12 @@ impl Data for GuiApp {
                                 if ui.button("Edit").clicked() {
                                     self.edit_company = false;
                                     //Edit the invoice in the self.invoices vector
-                                    todo!("Locate and Edit the invoice in the self.invoices vector");
-                                    //Reset the value
+                                    let index = self
+                                        .companies
+                                        .iter()
+                                        .position(|x| x.id == self.clicked_company.id)
+                                        .unwrap();
+                                    self.companies[index] = self.clicked_company.clone();
                                     self.clicked_company = Company::default();
                                 }
                                 ui.add_space(10.0);
@@ -1616,6 +1622,13 @@ impl Data for GuiApp {
 
     fn render_edit_service(&mut self, ctx: &egui::Context) {
         todo!()
+    }
+
+    fn delete_invoice(&mut self, invoice: Racun) {
+        for invoice in self.invoice_paths.iter_mut() {
+            todo!();
+        }
+       
     }
 }
 

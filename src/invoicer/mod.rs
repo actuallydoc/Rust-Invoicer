@@ -42,6 +42,7 @@ pub struct InvoiceStructure {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Partner {
+    pub id: i32,
     pub partner_name: String,
     pub partner_address: String,
     pub partner_postal_code: String,
@@ -50,6 +51,7 @@ pub struct Partner {
 impl Partner {
     pub fn default() -> Self {
         Self {
+            id: rand::random::<i32>(),
             partner_name: "Partner".to_string(),
             partner_address: "Address".to_string(),
             partner_postal_code: "0000".to_string(),
@@ -61,6 +63,7 @@ impl Partner {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Service {
+    pub id: i32,
     pub service_name: String,
     pub service_quantity: i32,
     pub service_price: f64,
@@ -68,6 +71,7 @@ pub struct Service {
 impl Service {
     pub fn default() -> Self {
         Self {
+            id: rand::random::<i32>(),
             service_name: "".to_string(),
             service_quantity: 1,
             service_price: 0.0,
@@ -76,7 +80,8 @@ impl Service {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Company {
+pub struct Company { 
+    pub id: i32,
     pub company_currency: String,
     pub company_name: String,
     pub company_address: String,
@@ -95,6 +100,7 @@ pub struct Company {
 impl Company {
     pub fn default() -> Self {
         Self {
+            id: rand::random::<i32>(),
             company_currency: "EUR".to_string(),
             company_name: "Company".to_string(),
             company_address: "Address".to_string(),
@@ -121,6 +127,7 @@ pub struct Racun {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Invoice {
+    pub id: i32,
     pub invoice_number: String,
     pub invoice_date: String,
     pub invoice_location: String,
@@ -139,6 +146,7 @@ pub struct Invoice {
 impl Default for Invoice {
     fn default() -> Self {
         Self {
+            id: rand::random::<i32>(),
             invoice_number: "0000".to_string(),
             invoice_date: "01.01.2021".to_string(),
             invoice_location: "Ljubljana".to_string(),
