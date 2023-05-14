@@ -29,12 +29,12 @@ Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 - [x] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
 - [x] No tax template which removes the all tax parts from the template
 - [x] Custom user company , partner ,services (you cannot edit them for now)
-- [] PDF Sign feature(It would work if the printpdf crate would support placing the image anywhere on the page(everything is implemented just the rendering is not))
+- [ ] PDF Sign feature(It would work if the printpdf crate would support placing the image anywhere on the page(everything is implemented just the rendering is not))
 #### Upcoming features.
-- [] Converting everything fully to database
-- [] PDF Sign feature
-- [] Auto complete partner from Slovenian database (will probably use webscraping instead of an api)
-- [] Hopefully i can implement to convert PDF into JPG and save it to memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
+- [ ] Converting everything fully to database
+- [ ] PDF Sign feature
+- [ ] Auto complete partner from Slovenian database (will probably use webscraping instead of an api)
+- [ ] Hopefully i can implement to convert PDF into JPG and save it to memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
 
 # Showcase
 
