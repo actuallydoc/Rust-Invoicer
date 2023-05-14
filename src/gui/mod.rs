@@ -3,16 +3,16 @@ use crate::invoicer::{init, Company, Partner, Racun, Service};
 
 use eframe::egui;
 use eframe::{self, IconData};
-use egui::emath::Numeric;
-use egui::{widgets, Align, Color32, Layout, TextureHandle, TextureId};
+
+use egui::{widgets, Align, Color32, Layout, TextureHandle};
 use egui::{RichText, Vec2};
 use fs::File;
-use image::Frame;
+
 use native_dialog::{self, FileDialog, MessageDialog, MessageType};
-use std::fmt::format;
+
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::{env, thread};
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
@@ -647,7 +647,7 @@ impl Data for GuiApp {
             })
         });
     }
-    fn render_header(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+    fn render_header(&mut self, ui: &mut egui::Ui, _ctx: &egui::Context) {
         ui.label("Project repo:");
         ui.add(widgets::Hyperlink::new("https://github.com/actuallydoc"));
         ui.add_space(PADDING);
@@ -1616,16 +1616,16 @@ impl Data for GuiApp {
             });
     }
 
-    fn render_edit_partner(&mut self, ctx: &egui::Context) {
+    fn render_edit_partner(&mut self, _ctx: &egui::Context) {
         todo!()
     }
 
-    fn render_edit_service(&mut self, ctx: &egui::Context) {
+    fn render_edit_service(&mut self, _ctx: &egui::Context) {
         todo!()
     }
 
-    fn delete_invoice(&mut self, invoice: Racun) {
-        for invoice in self.invoice_paths.iter_mut() {
+    fn delete_invoice(&mut self, _invoice: Racun) {
+        for _invoice in self.invoice_paths.iter_mut() {
             todo!();
         }
        
@@ -1703,7 +1703,7 @@ impl eframe::App for GuiApp {
 
         if self.show_image {
             if self.texture.is_some() {
-                if let Some(texture) = &mut self.texture {
+                if let Some(_texture) = &mut self.texture {
                     self.render_image_window(ctx);
                 }
             } else {

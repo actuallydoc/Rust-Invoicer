@@ -18,23 +18,23 @@ Step 2: Put fonts inside "/fonts" and name them font.ttf and font_bold.ttf (Both
 Step 3: Install Pdfium dynamic library and place it inside a pdfium folder
 ```
 #### Features
-- [✔] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects rust alternative to jspdf-table(javascript) )
-- [✔] GUI
-- [✔] Invoice generator
-- [✔] Fixed invoice template with table support
-- [✔] Invoice Rendering through the GUI
-- [✔] Invoice generation through GUI
-- [✔] Deleting PDF's
-- [✔] Only Slovenian language support on the invoice template(FOR NOW)
-- [✔] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
-- [✔] No tax template which removes the all tax parts from the template
-- [✔] Custom user company , partner ,services (you cannot edit them for now)
-- [/] PDF Sign feature(It would work if the printpdf crate would support placing the image anywhere on the page(everything is implemented just the rendering is not))
+- [x] A Table that expands automatically with each service you add to your invoice(This can be useful in other projects rust alternative to jspdf-table(javascript) )
+- [x] GUI
+- [x] Invoice generator
+- [x] Fixed invoice template with table support
+- [x] Invoice Rendering through the GUI
+- [x] Invoice generation through GUI
+- [x] Deleting PDF's
+- [x] Only Slovenian language support on the invoice template(FOR NOW)
+- [x] Flexible data customization(Company,Partner,Invoice, Tax rate for the whole invoice)
+- [x] No tax template which removes the all tax parts from the template
+- [x] Custom user company , partner ,services (you cannot edit them for now)
+- [] PDF Sign feature(It would work if the printpdf crate would support placing the image anywhere on the page(everything is implemented just the rendering is not))
 #### Upcoming features.
-- [❌] Converting everything fully to database
-- [❌] PDF Sign feature
-- [❌] Auto complete partner from Slovenian database (will probably use webscraping instead of an api)
-- [❌] Hopefully i can implement to convert PDF into JPG and save it to memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
+- [] Converting everything fully to database
+- [] PDF Sign feature
+- [] Auto complete partner from Slovenian database (will probably use webscraping instead of an api)
+- [] Hopefully i can implement to convert PDF into JPG and save it to memory to show it in the gui instead of converting + saving it to the path of the invoice then displaying it(really inefficient)
 
 # Showcase
 

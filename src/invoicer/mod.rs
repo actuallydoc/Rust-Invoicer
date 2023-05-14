@@ -269,10 +269,10 @@ pub fn render_payment_footer(
     layer.use_text("Žig:", 9.0, base_x, y, standard_font);
     //TODO Managed to get the image to work, but idk how to place it to x and y on the page
     if path.is_some() {
-        let mut image_file = File::open(&path.unwrap()).unwrap();
+        let _image_file = File::open(&path.unwrap()).unwrap();
         use ::image::io::Reader as ImageReader;
         let image = ImageReader::open(&path.unwrap()).unwrap().decode().unwrap();
-        let mut image_file_2 = ImageXObject {
+        let _image_file_2 = ImageXObject {
             width: Px(image.width() as usize / 2),
             height: Px(image.height() as usize / 2),
             color_space: ColorSpace::Rgba,
@@ -314,7 +314,7 @@ pub fn render_summary_table(
     let tax_difference_x = Mm(125.0);
     let total_price_x = Mm(150.0);
     if racun.invoice.invoice_tax > 0.0 {
-        make_line(layer, Mm(13.0), y, Mm(197.0), y);
+        make_line(layer, Mm(13.0), y - Mm(1.0) , Mm(197.0), y - Mm(1.0));
         layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
 
         layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
