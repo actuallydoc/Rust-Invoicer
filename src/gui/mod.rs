@@ -12,7 +12,7 @@ use native_dialog::{self, FileDialog, MessageDialog, MessageType};
 
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::{Read, Write};
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::{env, thread};
 const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
@@ -971,6 +971,10 @@ impl Data for GuiApp {
                                 &mut self.clicked_invoice.invoice.partner.partner_vat_id,
                             ))
                             .on_hover_text("Partner VAT");
+                            ui.add(egui::Checkbox::new(
+                                &mut self.clicked_invoice.invoice.partner.is_vat_payer,
+                                "Partner is VAT payer",
+                            ));
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
@@ -1015,7 +1019,7 @@ impl Data for GuiApp {
                                 .max_decimals(3),
                             )
                             .on_hover_text(
-                                "Payment amount without vat. Vat is calculated on the end",
+                                "Payment amount without vat. Vat is calculated on the end11",
                             );
                         });
                     });
@@ -1218,6 +1222,10 @@ impl Data for GuiApp {
                                 &mut self.latest_invoice.invoice.partner.partner_vat_id,
                             ))
                             .on_hover_text("Partner VAT");
+                            ui.add(egui::Checkbox::new(
+                                &mut self.latest_invoice.invoice.partner.is_vat_payer,
+                                "Partner is VAT payer",
+                            ));
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
@@ -1628,7 +1636,6 @@ impl Data for GuiApp {
         for _invoice in self.invoice_paths.iter_mut() {
             todo!();
         }
-       
     }
 }
 

@@ -3,3 +3,8 @@
 /.env
 /.vscode
 /backup
+
+
+companies.json
+partners.json
+services.json

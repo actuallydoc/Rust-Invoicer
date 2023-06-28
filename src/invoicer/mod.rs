@@ -47,6 +47,7 @@ pub struct Partner {
     pub partner_address: String,
     pub partner_postal_code: String,
     pub partner_vat_id: String,
+    pub is_vat_payer: bool,
 }
 impl Partner {
     pub fn default() -> Self {
@@ -56,6 +57,7 @@ impl Partner {
             partner_address: "Address".to_string(),
             partner_postal_code: "0000".to_string(),
             partner_vat_id: "00000000".to_string(),
+            is_vat_payer: true,
         }
     }
 }
@@ -80,7 +82,7 @@ impl Service {
 }
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Company { 
+pub struct Company {
     pub id: i32,
     pub company_currency: String,
     pub company_name: String,
@@ -314,7 +316,7 @@ pub fn render_summary_table(
     let tax_difference_x = Mm(125.0);
     let total_price_x = Mm(150.0);
     if racun.invoice.invoice_tax > 0.0 {
-        make_line(layer, Mm(13.0), y - Mm(1.0) , Mm(197.0), y - Mm(1.0));
+        make_line(layer, Mm(13.0), y - Mm(1.0), Mm(197.0), y - Mm(1.0));
         layer.use_text("Davčna stopnja", 9.0, tax_x, y, bold_font);
 
         layer.use_text("Osnova za DDV", 9.0, base_tax_x, y, bold_font);
@@ -379,13 +381,26 @@ pub fn render_service(
     //Always a constant
     let service_x = Mm(180.0);
     //Rendering price that has to be paid included with tax
-    layer.use_text(
-        format!("{:.2}{}", new_value, invoice.invoice.invoice_currency),
-        9.0,
-        service_x,
-        y,
-        font,
-    );
+    if invoice.invoice.invoice_tax > 0.0 {
+        layer.use_text(
+            format!("{:.2}{}", new_value, invoice.invoice.invoice_currency),
+            9.0,
+            service_x,
+            y,
+            font,
+        );
+    } else {
+        layer.use_text(
+            format!(
+                "{:.2}{}",
+                service_by_quantity_price, invoice.invoice.invoice_currency
+            ),
+            9.0,
+            service_x,
+            y,
+            font,
+        );
+    }
     //Render service DDV percentage
     //Always a constant
     let ddv_x = Mm(165.0);
@@ -569,15 +584,16 @@ pub fn render_partner_header(
         Mm(223.0),
         standard_font,
     );
-
-    //Partner tax number
-    layer.use_text(
-        format!("ID za DDV kupca: {}", racun.invoice.partner.partner_vat_id),
-        racun.config.font_sizes.small,
-        Mm(15.0),
-        Mm(202.0),
-        standard_font,
-    );
+    //Partner tax number only if the partner is a VAT payer
+    if (racun.invoice.partner.is_vat_payer) {
+        layer.use_text(
+            format!("ID za DDV kupca: {}", racun.invoice.partner.partner_vat_id),
+            racun.config.font_sizes.small,
+            Mm(15.0),
+            Mm(202.0),
+            standard_font,
+        );
+    }
 }
 
 pub fn render_company_header(
