@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::{init, Company, Partner, Racun, Service};
+use crate::invoicer::{
+    init, Company, Invoice, InvoiceStructure, Partner, PaymentStatus, Racun, Service,
+};
 
 use eframe::egui;
 use eframe::{self, IconData};
@@ -9,6 +11,7 @@ use egui::{RichText, Vec2};
 use fs::File;
 
 use native_dialog::{self, FileDialog, MessageDialog, MessageType};
+use rusqlite::Connection;
 
 use std::fs::{self, DirEntry, OpenOptions};
 use std::io::{Read, Write};
@@ -18,11 +21,12 @@ const PADDING: f32 = 5.0;
 const WHITE: Color32 = Color32::WHITE;
 const CYAN: Color32 = Color32::from_rgb(0, 255, 255);
 struct GuiApp {
+    db_connection: Connection,
     allowed_to_close: bool,
     show_confirmation_dialog: bool,
     show_image: bool,
     invoice_paths: Vec<DirEntry>,
-    json_data: Vec<Racun>,
+    invoices: Vec<Invoice>,
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
     texture: Option<TextureHandle>,
@@ -31,8 +35,8 @@ struct GuiApp {
     edit: bool,
     selected_signature: Option<String>,
     signature_path: Option<PathBuf>,
-    clicked_invoice: Racun,
-    latest_invoice: Racun,
+    clicked_invoice: Invoice,
+    latest_invoice: Invoice,
     clicked_company: Company,
     clicked_partner: Partner,
     clicked_service: Service,
@@ -61,16 +65,20 @@ struct GuiApp {
 trait Data {
     fn new() -> Self;
     //Pdf functions
-    fn generate_pdf(&mut self, invoice: Racun) -> bool;
-    //Json functions
+    fn generate_pdf(&mut self, invoice: Invoice) -> bool;
+    fn save_invoice(&mut self, invoice: Invoice);
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
-    fn parse_jsons(&mut self);
+    fn parse_invoices(&mut self);
     fn get_partners(&mut self);
     fn get_services(&mut self);
     fn get_companies(&mut self);
     fn save_partner(&mut self, partner: Partner);
     fn save_service(&mut self, service: Service);
     fn save_company(&mut self, company: Company);
+    fn delete_company(&mut self, company: Company);
+    fn delete_partner(&mut self, partner: Partner);
+    fn delete_service(&mut self, service: Service);
+    // fn delete_invoice(&mut self, invoice: Racun);
     //Ui functions
     fn render_header(&mut self, ui: &mut egui::Ui, ctx: &egui::Context);
     fn render_main(&mut self, ui: &mut egui::Ui, ctx: &egui::Context);
@@ -99,6 +107,7 @@ trait Data {
 impl Data for GuiApp {
     fn new() -> Self {
         let mut this = Self {
+            db_connection: Connection::open("invoicer.sqlite").unwrap(),
             clicked_company: Company::default(),
             clicked_partner: Partner::default(),
             clicked_service: Service::default(),
@@ -107,7 +116,7 @@ impl Data for GuiApp {
             show_confirmation_dialog: false,
             show_image: false,
             invoice_paths: Vec::new(),
-            json_data: Vec::new(),
+            invoices: Vec::new(),
             companies: Vec::new(),
             partners: Vec::new(),
             services: Vec::new(),
@@ -121,9 +130,9 @@ impl Data for GuiApp {
             create_service: false,
             selected_signature: None,
             signature_path: None,
-            latest_invoice: Racun::default(),
+            latest_invoice: Invoice::default(),
             add_service: false,
-            clicked_invoice: Racun::default(),
+            clicked_invoice: Invoice::default(),
             manage_companies: false,
             edit_company: false,
             manage_partners: false,
@@ -144,10 +153,90 @@ impl Data for GuiApp {
         } else {
             this.invoice_paths = Vec::new();
         }
+
+        // Company query
+        this.db_connection
+            .execute(
+                "
+CREATE TABLE IF NOT EXISTS Company (
+    id INTEGER PRIMARY KEY,
+    company_currency TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    company_address TEXT NOT NULL,
+    company_postal_code TEXT NOT NULL,
+    company_bankname TEXT NOT NULL,
+    company_vat_id TEXT NOT NULL,
+    company_iban TEXT NOT NULL,
+    company_swift TEXT NOT NULL,
+    company_registration_number TEXT NOT NULL,
+    company_phone TEXT NOT NULL,
+    company_signature TEXT,
+    company_signature_path TEXT,
+    company_vat_rate REAL NOT NULL,
+    company_business_registered_at TEXT NOT NULL
+        )
+
+",
+                (),
+            )
+            .unwrap();
+
         this.get_companies();
+        // Partner query
+        this.db_connection
+            .execute(
+                "CREATE TABLE IF NOT EXISTS Partner (
+                    id INTEGER PRIMARY KEY,
+                    partner_name TEXT NOT NULL,
+                    partner_address TEXT NOT NULL,
+                    partner_postal_code TEXT NOT NULL,
+                    partner_vat_id TEXT NOT NULL,
+                    is_vat_payer INTEGER NOT NULL,
+                    emso TEXT NOT NULL
+                )",
+                (),
+            )
+            .unwrap();
+
+        // Invoice query
+        this.db_connection
+            .execute(
+                "CREATE TABLE IF NOT EXISTS Invoice (
+            id INTEGER PRIMARY KEY,
+            invoice_number TEXT NOT NULL,
+            invoice_date TEXT NOT NULL,
+            invoice_location TEXT NOT NULL,
+            service_date TEXT NOT NULL,
+            invoice_currency TEXT NOT NULL,
+            due_date TEXT NOT NULL,
+            invoice_tax REAL NOT NULL,
+            invoice_reference TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            status TEXT NOT NULL,
+            company_id INTEGER NOT NULL,
+            partner_id INTEGER NOT NULL,
+            services ARRAY NOT NULL,
+            FOREIGN KEY (company_id) REFERENCES Company(id),
+            FOREIGN KEY (partner_id) REFERENCES Partner(id)
+        )",
+                (),
+            )
+            .unwrap();
+        // Service query
+        this.db_connection
+            .execute(
+                "CREATE TABLE IF NOT EXISTS Service (
+            id INTEGER PRIMARY KEY,
+            service_name TEXT NOT NULL,
+            service_quantity INTEGER NOT NULL,
+            service_price REAL NOT NULL
+        )",
+                (),
+            )
+            .unwrap();
         this.get_partners();
         this.get_services();
-        this.parse_jsons();
+        this.parse_invoices();
         this
     }
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>> {
@@ -168,130 +257,124 @@ impl Data for GuiApp {
             }
         }
     }
-    //*!TODO if the json file is empty dont parse it cause its gonna panic or i can just use a print statement */
-    fn get_companies(&mut self) {
-        //Open the json file
-        let mut file_content = match File::open("companies.json") {
-            Ok(file) => file,
-            Err(_) => {
-                let file = File::create("companies.json").unwrap();
-                file
-            }
-        };
-        let mut contents = String::new();
-        match file_content.read_to_string(&mut contents) {
-            Ok(_) => {
-                let companies: Vec<Company> = match serde_json::from_str(&contents) {
-                    Ok(invoice) => invoice,
-                    Err(err) => panic!("Could not deserialize the file, error code: {}", err),
-                };
 
-                for company in companies {
-                    self.companies.push(company);
-                }
-            }
-            Err(err) => panic!("Could not read the json file, error code: {}", err),
-        };
+    fn get_companies(&mut self) {
+        let mut stmt = self.db_connection.prepare("SELECT * FROM Company").unwrap();
+        let company_iter = stmt
+            .query_map([], |row| {
+                Ok(Company {
+                    id: row.get(0).unwrap(),
+                    company_currency: row.get(1).unwrap(),
+                    company_name: row.get(2).unwrap(),
+                    company_address: row.get(3).unwrap(),
+                    company_postal_code: row.get(4).unwrap(),
+                    company_bankname: row.get(5).unwrap(),
+                    company_vat_id: row.get(6).unwrap(),
+                    company_iban: row.get(7).unwrap(),
+                    company_swift: row.get(8).unwrap(),
+                    company_registration_number: row.get(9).unwrap(),
+                    company_phone: row.get(10).unwrap(),
+                    company_signature: row.get(11).unwrap(),
+                    // Not implemented yet
+                    company_signature_path: None,
+                    company_vat_rate: row.get(13).unwrap(),
+                    company_business_registered_at: row.get(14).unwrap(),
+                })
+            })
+            .unwrap();
+        for company in company_iter {
+            self.companies.push(company.unwrap());
+        }
     }
     fn get_partners(&mut self) {
-        let mut file_content = match File::open("partners.json") {
-            Ok(file) => file,
-            Err(_) => {
-                let file = File::create("partners.json").unwrap();
-                file
-            }
-        };
-        let mut contents = String::new();
-        match file_content.read_to_string(&mut contents) {
-            Ok(_) => {
-                let partners: Vec<Partner> = match serde_json::from_str(&contents) {
-                    Ok(invoice) => invoice,
-                    Err(err) => panic!("Could not deserialize the file, error code: {}", err),
-                };
+        let mut stmt = self.db_connection.prepare("SELECT * FROM Partner").unwrap();
+        let partner_iter = stmt
+            .query_map([], |row| {
+                Ok(Partner {
+                    id: row.get(0).unwrap(),
+                    partner_name: row.get(1).unwrap(),
+                    partner_address: row.get(2).unwrap(),
+                    partner_postal_code: row.get(3).unwrap(),
+                    partner_vat_id: row.get(4).unwrap(),
+                    is_vat_payer: row.get(5).unwrap(),
+                    emso: row.get(6).unwrap(),
+                })
+            })
+            .unwrap();
 
-                for partner in partners {
-                    self.partners.push(partner);
-                }
-            }
-            Err(err) => panic!("Could not read the json file, error code: {}", err),
-        };
+        for partner in partner_iter {
+            self.partners.push(partner.unwrap());
+        }
     }
     fn get_services(&mut self) {
-        let mut file_content = match File::open("services.json") {
-            Ok(file) => file,
-            Err(_) => {
-                let file = File::create("services.json").unwrap();
-                file
-            }
-        };
-        let mut contents = String::new();
-        match file_content.read_to_string(&mut contents) {
-            Ok(_) => {
-                let services: Vec<Service> = match serde_json::from_str(&contents) {
-                    Ok(invoice) => invoice,
-                    Err(err) => panic!("Could not deserialize the file, error code: {}", err),
-                };
+        let mut stmt = self.db_connection.prepare("SELECT * FROM Service").unwrap();
+        let service_iter = stmt
+            .query_map([], |row| {
+                Ok(Service {
+                    id: row.get(0).unwrap(),
+                    service_name: row.get(1).unwrap(),
+                    service_quantity: row.get(2).unwrap(),
+                    service_price: row.get(3).unwrap(),
+                })
+            })
+            .unwrap();
 
-                for service in services {
-                    self.services.push(service);
-                }
-            }
-            Err(err) => panic!("Could not read the json file, error code: {}", err),
-        };
+        for service in service_iter {
+            self.services.push(service.unwrap());
+        }
     }
     fn save_company(&mut self, company: Company) {
-        self.companies.push(company);
-        let file_name = "companies.json";
-        match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(file_name)
-        {
-            Ok(mut file) => {
-                let serialized = serde_json::to_string(&self.companies).unwrap();
-                file.write_all(serialized.as_bytes()).unwrap();
-            }
-            Err(err) => panic!("Could not open the file, error code: {}", err),
-        };
+        self.companies.clear();
+        self.db_connection.execute(
+            "INSERT INTO Company (company_currency, company_name, company_address, company_postal_code, company_bankname, company_vat_id, company_iban, company_swift, company_registration_number, company_phone, company_signature, company_vat_rate, company_business_registered_at) VALUES (?1, ?2, ?3,?4,?5,?6,?7,?8,?9,?10,?11,?12, ?13)",
+            (company.company_currency, company.company_name, company.company_address, company.company_postal_code, company.company_bankname, company.company_vat_id, company.company_iban, company.company_swift, company.company_registration_number, company.company_phone, company.company_signature, company.company_vat_rate, company.company_business_registered_at),
+        ).unwrap();
+        self.get_companies();
     }
     fn save_partner(&mut self, partner: Partner) {
-        self.partners.push(partner);
-        let file_name = "partners.json";
-        match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(file_name)
-        {
-            Ok(mut file) => {
-                let serialized = serde_json::to_string(&self.partners).unwrap();
-                file.write_all(serialized.as_bytes()).unwrap();
-            }
-            Err(err) => panic!("Could not open the file, error code: {}", err),
-        };
+        self.partners.clear();
+        self.db_connection.execute(
+            "INSERT INTO Partner (partner_name, partner_address, partner_postal_code, partner_vat_id, is_vat_payer, emso) VALUES (?1, ?2, ?3,?4,?5,?6)",
+            (partner.partner_name, partner.partner_address, partner.partner_postal_code, partner.partner_vat_id, partner.is_vat_payer, partner.emso),
+        ).unwrap();
+        self.get_partners();
     }
     fn save_service(&mut self, service: Service) {
-        self.services.push(service);
-        let file_name = "services.json";
-        match OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(file_name)
-        {
-            Ok(mut file) => {
-                let serialized = serde_json::to_string(&self.services).unwrap();
-                file.write_all(serialized.as_bytes()).unwrap();
-            }
-            Err(err) => panic!("Could not open the file, error code: {}", err),
-        };
+        self.services.clear();
+        self.db_connection.execute(
+            "INSERT INTO Service (service_name, service_quantity, service_price) VALUES (?1, ?2, ?3)",
+            (service.service_name, service.service_quantity, service.service_price),
+        ).unwrap();
+        self.get_services();
     }
-    fn generate_pdf(&mut self, invoice: Racun) -> bool {
+    fn save_invoice(&mut self, invoice: Invoice) {
+        let services = serde_json::to_string(&invoice.services).unwrap();
+
+        self.db_connection.execute("
+        INSERT INTO Invoice (invoice_number, invoice_date, invoice_location, service_date , invoice_currency, due_date , invoice_tax , invoice_reference, created_by,status, company_id , partner_id, services) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+        ", (
+            invoice.invoice_number,
+            invoice.invoice_date,
+            invoice.invoice_location,
+            invoice.service_date,
+            invoice.invoice_currency,
+            invoice.due_date,
+            invoice.invoice_tax,
+            invoice.invoice_reference,
+            invoice.created_by,
+            invoice.status.to_string(),
+            invoice.company.id,
+            invoice.partner.id,
+            services
+        )).unwrap();
+    }
+    fn generate_pdf(&mut self, invoice: Invoice) -> bool {
         print!("Generating pdf...");
+        let invoice = Racun {
+            invoice: invoice.clone(),
+            config: InvoiceStructure::default(),
+        };
+        self.save_invoice(invoice.invoice.clone());
         let temp_path = self.signature_path.clone();
         let handle = thread::spawn(move || {
             let mut state = false;
@@ -320,32 +403,44 @@ impl Data for GuiApp {
         let result = handle.join().unwrap();
         result
     }
-    fn parse_jsons(&mut self) {
-        let paths = self.get_invoices();
-        //Make a vector of invoices
-        let mut json_data: Vec<Racun> = Vec::new();
-        for path in paths.unwrap() {
-            let mut file_path = path.path();
-            file_path.push("output.json");
-            let mut file_content = match File::open(file_path.to_str().unwrap()) {
-                Ok(file) => file,
-                Err(_) => {
-                    continue;
-                } //*!TODO This panics alot if the user clicks refresh too fast or if the dir doesnt have the json (idk how tho) *//
-            };
-            let mut contents = String::new();
-            match file_content.read_to_string(&mut contents) {
-                Ok(_) => {
-                    let invoice: Racun = match serde_json::from_str(&contents) {
-                        Ok(invoice) => invoice,
-                        Err(err) => panic!("Could not deserialize the file, error code: {}", err),
-                    };
-                    json_data.push(invoice);
-                }
-                Err(err) => panic!("Could not read the json file, error code: {}", err),
-            };
+    // TODO
+    fn parse_invoices(&mut self) {
+        let mut stmt = self.db_connection.prepare("SELECT * FROM Invoice").unwrap();
+        let invoice_iter = stmt
+            .query_map([], |row| {
+                Ok(Invoice {
+                    id: row.get(0).unwrap(),
+                    invoice_number: Box::new(row.get(1).unwrap()),
+                    invoice_date: Box::new(row.get(2).unwrap()),
+                    invoice_location: Box::new(row.get(3).unwrap()),
+                    service_date: Box::new(row.get(4).unwrap()),
+                    invoice_currency: Box::new(row.get(5).unwrap()),
+                    due_date: Box::new(row.get(6).unwrap()),
+                    invoice_tax: row.get(7).unwrap(),
+                    invoice_reference: Box::new(row.get(8).unwrap()),
+                    created_by: Box::new(row.get(9).unwrap()),
+                    status: Box::new(
+                        serde_json::from_str(
+                            &row.get::<usize, PaymentStatus>(10).unwrap().to_string(),
+                        )
+                        .unwrap(),
+                    ),
+                    company: Box::new(
+                        serde_json::from_str(&row.get::<usize, Company>(11).unwrap().to_string())
+                            .unwrap(),
+                    ),
+                    partner: Box::new(
+                        serde_json::from_str(&row.get(12).unwrap().to_string()).unwrap(),
+                    ),
+                    services: Box::new(
+                        serde_json::from_str(&row.get(13).unwrap().to_string()).unwrap(),
+                    ),
+                })
+            })
+            .unwrap();
+        for invoice in invoice_iter {
+            self.invoices.push(invoice.unwrap());
         }
-        self.json_data = json_data;
     }
     fn render_image_window(&mut self, ctx: &egui::Context) {
         egui::Window::new("Pdf viewer")
@@ -411,6 +506,8 @@ impl Data for GuiApp {
                                 edit = Some(company.clone());
                             }
                             if ui.button("Delete").clicked() {
+                                self.delete_company(company.clone());
+
                                 self.companies.remove(
                                     self.companies.iter().position(|x| x == &company).unwrap(),
                                 );
@@ -460,9 +557,17 @@ impl Data for GuiApp {
                                 todo!("Edit partner window")
                             }
                             if ui.button("Delete").clicked() {
-                                self.partners.remove(
-                                    self.partners.iter().position(|x| x == &partner).unwrap(),
-                                );
+                                self.delete_partner(partner.clone());
+                                for partners in self.partners.clone() {
+                                    if partners == partner {
+                                        self.partners.remove(
+                                            self.partners
+                                                .iter()
+                                                .position(|x| x == &partner)
+                                                .unwrap(),
+                                        );
+                                    }
+                                }
                             }
                             ui.end_row();
                         }
@@ -503,6 +608,7 @@ impl Data for GuiApp {
                                 todo!("Edit service window")
                             }
                             if ui.button("Delete").clicked() {
+                                self.delete_service(services.clone());
                                 self.services.remove(
                                     self.services.iter().position(|x| x == &services).unwrap(),
                                 );
@@ -543,7 +649,7 @@ impl Data for GuiApp {
                                     )
                                     .clicked()
                                 {
-                                    self.latest_invoice.invoice.company = self.temp_company.clone();
+                                    self.latest_invoice.company = *self.temp_company.clone();
                                     self.change_company = false;
                                 };
                             }
@@ -580,7 +686,7 @@ impl Data for GuiApp {
                                     )
                                     .clicked()
                                 {
-                                    self.latest_invoice.invoice.partner = self.temp_partner.clone();
+                                    self.latest_invoice.partner = *self.temp_partner.clone();
                                     self.change_partner = false;
                                 };
                             }
@@ -614,7 +720,7 @@ impl Data for GuiApp {
                     .clicked()
                 {
                     let new_service = Service::default();
-                    self.latest_invoice.invoice.services.push(new_service);
+                    self.latest_invoice.services.push(new_service);
                     // self.service_count += 1;
                     self.add_service = false;
                 }
@@ -628,7 +734,7 @@ impl Data for GuiApp {
                     .show_ui(ui, |ui| {
                         for service in self.services.iter() {
                             if ui.selectable_value(&mut self.temp_service , service.clone(), format!("{}", service.service_name.to_string())).clicked() {
-                                self.latest_invoice.invoice.services.push(service.clone());
+                                self.latest_invoice.services.push(service.clone());
                                 self.add_service = false;
                             };
                         }
@@ -691,7 +797,7 @@ impl Data for GuiApp {
     }
     fn render_main(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         egui::Grid::new("invoice_grid").show(ui, |ui| {
-            if self.json_data.iter().len() == 0 {
+            if self.invoices.iter().len() == 0 {
                 ui.add(widgets::Spinner::new());
                 ui.label("No invoices found");
                 self.refresh = true;
@@ -709,23 +815,23 @@ impl Data for GuiApp {
                 ui.colored_label(WHITE, "Currency");
                 ui.colored_label(WHITE, "Actions");
                 ui.end_row();
-                for invoice in self.json_data.iter_mut() {
+                for invoice in self.invoices.iter_mut() {
                     ui.horizontal(|ui| {
-                        ui.label(invoice.invoice.invoice_number.to_string())
+                        ui.label(invoice.invoice_number.to_string())
                     });
-                    ui.label(invoice.invoice.invoice_date.to_string());
-                    ui.label(invoice.invoice.service_date.to_string());
-                    ui.label(invoice.invoice.due_date.to_string());
-                    ui.label(invoice.invoice.partner.partner_name.to_string());
-                    ui.label(invoice.invoice.company.company_name.to_string());
-                    ui.label(invoice.invoice.status.to_string());
-                    for service in &invoice.invoice.services {
+                    ui.label(invoice.invoice_date.to_string());
+                    ui.label(invoice.service_date.to_string());
+                    ui.label(invoice.due_date.to_string());
+                    ui.label(invoice.partner.partner_name.to_string());
+                    ui.label(invoice.company.company_name.to_string());
+                    ui.label(invoice.status.to_string());
+                    for service in &*invoice.services {
                         //Calculate the total price of the invoice
                         let mut total_price = 0.0;
-                        total_price += service.service_price * (100.0 + invoice.invoice.invoice_tax) / 100.0;
-                        ui.label(format!("{:.2} {}", total_price, invoice.invoice.invoice_currency));
+                        total_price += service.service_price * (100.0 + invoice.invoice_tax) / 100.0;
+                        ui.label(format!("{:.2} {}", total_price, invoice.invoice_currency));
                     }
-                    ui.label(invoice.invoice.invoice_currency.to_string());
+                    ui.label(invoice.invoice_currency.to_string());
                     ui.horizontal(|ui| {
                         //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
                         //View will open the invoice in a pdf viewer
@@ -734,7 +840,7 @@ impl Data for GuiApp {
                             for invoice_path in &self.invoice_paths {
                                 if invoice_path
                                     .path()
-                                    .ends_with(&invoice.invoice.invoice_number)
+                                    .ends_with(&*invoice.invoice_number)
                                 {
                                     self.clicked_pdf_path = invoice_path.path();
                                     //Get the JPG file from the clicked invoice and render it
@@ -789,7 +895,7 @@ impl Data for GuiApp {
                                 for invoice_path in &self.invoice_paths {
                                     if invoice_path
                                         .path()
-                                        .ends_with(&invoice.invoice.invoice_number)
+                                        .ends_with(&*invoice.invoice_number)
                                     {
                                      //Delete the invoice from the json file
                                      if fs::remove_dir_all(invoice_path.path()).is_ok() {
@@ -811,7 +917,7 @@ impl Data for GuiApp {
             ui.with_layout(Layout::left_to_right(egui::Align::BOTTOM), |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Total invoices:");
-                    ui.label(self.json_data.iter().len().to_string());
+                    ui.label(self.invoices.iter().len().to_string());
                     ui.add_space(50.00);
                     ui.label(format!("Companies: {}", self.companies.len().to_string()));
                     ui.add_space(50.00);
@@ -840,61 +946,52 @@ impl Data for GuiApp {
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_name,
+                                &mut self.clicked_invoice.company.company_name,
                             ))
                             .on_hover_text("Company name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_iban,
+                                &mut self.clicked_invoice.company.company_iban,
                             ))
                             .on_hover_text("Company IBAN");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_swift,
+                                &mut self.clicked_invoice.company.company_swift,
                             ))
                             .on_hover_text("Company SWIFT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_bankname,
+                                &mut self.clicked_invoice.company.company_bankname,
                             ))
                             .on_hover_text("Company Bank Name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_address,
+                                &mut self.clicked_invoice.company.company_address,
                             ))
                             .on_hover_text("Company address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_postal_code,
+                                &mut self.clicked_invoice.company.company_postal_code,
                             ))
                             .on_hover_text("Company postal code");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_vat_id,
+                                &mut self.clicked_invoice.company.company_vat_id,
                             ))
                             .on_hover_text("Company VAT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_phone,
+                                &mut self.clicked_invoice.company.company_phone,
                             ))
                             .on_hover_text("Company PHONE");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self
-                                    .clicked_invoice
-                                    .invoice
-                                    .company
-                                    .company_registration_number,
+                                &mut self.clicked_invoice.company.company_registration_number,
                             ))
                             .on_hover_text("Company Registeration number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self
-                                    .clicked_invoice
-                                    .invoice
-                                    .company
-                                    .company_business_registered_at,
+                                &mut self.clicked_invoice.company.company_business_registered_at,
                             ))
                             .on_hover_text("Company Registered at");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.company.company_currency,
+                                &mut self.clicked_invoice.company.company_currency,
                             ))
                             .on_hover_text("Company currency");
                             ui.add_space(10.0);
                             if self
                                 .clicked_invoice
-                                .invoice
                                 .company
                                 .company_signature_path
                                 .is_some()
@@ -902,7 +999,6 @@ impl Data for GuiApp {
                                 ui.label(format!(
                                     "Signature: {}",
                                     self.clicked_invoice
-                                        .invoice
                                         .company
                                         .company_signature_path
                                         .clone()
@@ -940,7 +1036,7 @@ impl Data for GuiApp {
                                         image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
                                     self.signature_path = Some(path.clone());
-                                    self.clicked_invoice.invoice.company.company_signature_path =
+                                    self.clicked_invoice.company.company_signature_path =
                                         Some(path);
                                 }
                             }
@@ -956,75 +1052,75 @@ impl Data for GuiApp {
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.partner.partner_name,
+                                &mut self.clicked_invoice.partner.partner_name,
                             ))
                             .on_hover_text("Partner name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.partner.partner_address,
+                                &mut self.clicked_invoice.partner.partner_address,
                             ))
                             .on_hover_text("Partner Address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.partner.partner_postal_code,
+                                &mut self.clicked_invoice.partner.partner_postal_code,
                             ))
                             .on_hover_text("Partner postal code");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.partner.partner_vat_id,
+                                &mut self.clicked_invoice.partner.partner_vat_id,
                             ));
-                            if !self.clicked_invoice.invoice.partner.is_vat_payer {
+                            if !self.clicked_invoice.partner.is_vat_payer {
                                 ui.label("EMŠO:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.clicked_invoice.invoice.partner.emso,
+                                    &mut self.clicked_invoice.partner.emso,
                                 ))
                                 .on_hover_text("Partner Emšo");
                             } else {
                                 ui.label("VAT ID:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.clicked_invoice.invoice.partner.partner_vat_id,
+                                    &mut self.clicked_invoice.partner.partner_vat_id,
                                 ))
                                 .on_hover_text("Partner VAT ID");
                             }
                             ui.add(egui::Checkbox::new(
-                                &mut self.clicked_invoice.invoice.partner.is_vat_payer,
+                                &mut self.clicked_invoice.partner.is_vat_payer,
                                 "Partner is VAT payer",
                             ));
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.invoice_number,
+                                &mut *self.clicked_invoice.invoice_number,
                             ))
                             .on_hover_text("Invoice number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.invoice_date,
+                                &mut *self.clicked_invoice.invoice_date,
                             ))
                             .on_hover_text("Invoice date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.service_date,
+                                &mut *self.clicked_invoice.service_date,
                             ))
                             .on_hover_text("Invoice service date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.due_date,
+                                &mut *self.clicked_invoice.due_date,
                             ))
                             .on_hover_text("Invoice due date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.invoice_location,
+                                &mut *self.clicked_invoice.invoice_location,
                             ))
                             .on_hover_text("Invoice location");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.invoice_currency,
+                                &mut *self.clicked_invoice.invoice_currency,
                             ))
                             .on_hover_text("Invoice currency (SYMBOL)");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.invoice_reference,
+                                &mut *self.clicked_invoice.invoice_reference,
                             ))
                             .on_hover_text("Invoice reference");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.invoice.created_by,
+                                &mut *self.clicked_invoice.created_by,
                             ))
                             .on_hover_text("Created by");
                             ui.add(
                                 egui::Slider::new(
-                                    &mut self.clicked_invoice.invoice.invoice_tax,
+                                    &mut self.clicked_invoice.invoice_tax,
                                     0.0..=100.0,
                                 )
                                 .text("Tax rate")
@@ -1046,7 +1142,7 @@ impl Data for GuiApp {
                         ui.vertical_centered(|ui| {
                             ui.heading("Services");
                             for (pos, service) in
-                                self.clicked_invoice.invoice.services.iter_mut().enumerate()
+                                self.clicked_invoice.services.iter_mut().enumerate()
                             {
                                 ui.horizontal(|ui| {
                                     ui.add(egui::TextEdit::multiline(&mut service.service_name))
@@ -1080,7 +1176,7 @@ impl Data for GuiApp {
                                 });
                             }
                             if let Some(pos) = delete {
-                                self.clicked_invoice.invoice.services.remove(pos);
+                                self.clicked_invoice.services.remove(pos);
                             }
                             if ui.button("Add service").clicked() {
                                 self.add_service = true;
@@ -1088,7 +1184,7 @@ impl Data for GuiApp {
                         });
                         if ui.button("Edit").clicked() {
                             //Locate the index
-                            self.delete_invoice(self.clicked_invoice.clone());
+                            // self.delete_invoice(self.clicked_invoice.clone());
                             self.generate_pdf(self.clicked_invoice.clone());
                             self.edit = false;
                         }
@@ -1117,55 +1213,47 @@ impl Data for GuiApp {
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_name,
+                                &mut self.latest_invoice.company.company_name,
                             ))
                             .on_hover_text("Company name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_iban,
+                                &mut self.latest_invoice.company.company_iban,
                             ))
                             .on_hover_text("Company IBAN");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_swift,
+                                &mut self.latest_invoice.company.company_swift,
                             ))
                             .on_hover_text("Company SWIFT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_bankname,
+                                &mut self.latest_invoice.company.company_bankname,
                             ))
                             .on_hover_text("Company Bank Name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_address,
+                                &mut self.latest_invoice.company.company_address,
                             ))
                             .on_hover_text("Company address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_postal_code,
+                                &mut self.latest_invoice.company.company_postal_code,
                             ))
                             .on_hover_text("Company postal code");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_vat_id,
+                                &mut self.latest_invoice.company.company_vat_id,
                             ))
                             .on_hover_text("Company VAT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_phone,
+                                &mut self.latest_invoice.company.company_phone,
                             ))
                             .on_hover_text("Company PHONE");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self
-                                    .latest_invoice
-                                    .invoice
-                                    .company
-                                    .company_registration_number,
+                                &mut self.latest_invoice.company.company_registration_number,
                             ))
                             .on_hover_text("Company Registeration number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self
-                                    .latest_invoice
-                                    .invoice
-                                    .company
-                                    .company_business_registered_at,
+                                &mut self.latest_invoice.company.company_business_registered_at,
                             ))
                             .on_hover_text("Company Registered at");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.company.company_currency,
+                                &mut self.latest_invoice.company.company_currency,
                             ))
                             .on_hover_text("Company currency");
 
@@ -1203,8 +1291,7 @@ impl Data for GuiApp {
                                         image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
                                     self.signature_path = Some(path.clone());
-                                    self.latest_invoice.invoice.company.company_signature_path =
-                                        Some(path);
+                                    self.latest_invoice.company.company_signature_path = Some(path);
                                 }
                             }
                         });
@@ -1219,72 +1306,72 @@ impl Data for GuiApp {
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.partner.partner_name,
+                                &mut self.latest_invoice.partner.partner_name,
                             ))
                             .on_hover_text("Partner name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.partner.partner_address,
+                                &mut self.latest_invoice.partner.partner_address,
                             ))
                             .on_hover_text("Partner Address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.partner.partner_postal_code,
+                                &mut self.latest_invoice.partner.partner_postal_code,
                             ))
                             .on_hover_text("Partner postal code");
-                            if !self.latest_invoice.invoice.partner.is_vat_payer {
+                            if !self.latest_invoice.partner.is_vat_payer {
                                 ui.label("EMŠO:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.latest_invoice.invoice.partner.emso,
+                                    &mut self.latest_invoice.partner.emso,
                                 ))
                                 .on_hover_text("Partner Emšo");
                             } else {
                                 ui.label("VAT ID:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.latest_invoice.invoice.partner.partner_vat_id,
+                                    &mut self.latest_invoice.partner.partner_vat_id,
                                 ))
                                 .on_hover_text("Partner VAT ID");
                             }
                             ui.add(egui::Checkbox::new(
-                                &mut self.latest_invoice.invoice.partner.is_vat_payer,
+                                &mut self.latest_invoice.partner.is_vat_payer,
                                 "Partner is VAT payer",
                             ));
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.invoice_number,
+                                &mut *self.latest_invoice.invoice_number,
                             ))
                             .on_hover_text("Invoice number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.invoice_date,
+                                &mut *self.latest_invoice.invoice_date,
                             ))
                             .on_hover_text("Invoice date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.service_date,
+                                &mut *self.latest_invoice.service_date,
                             ))
                             .on_hover_text("Invoice service date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.due_date,
+                                &mut *self.latest_invoice.due_date,
                             ))
                             .on_hover_text("Invoice due date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.invoice_location,
+                                &mut *self.latest_invoice.invoice_location,
                             ))
                             .on_hover_text("Invoice location");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.invoice_currency,
+                                &mut *self.latest_invoice.invoice_currency,
                             ))
                             .on_hover_text("Invoice currency (SYMBOL)");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.invoice_reference,
+                                &mut *self.latest_invoice.invoice_reference,
                             ))
                             .on_hover_text("Invoice reference");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.created_by,
+                                &mut *self.latest_invoice.created_by,
                             ))
                             .on_hover_text("Created by");
                             ui.add(
                                 egui::Slider::new(
-                                    &mut self.latest_invoice.invoice.invoice_tax,
+                                    &mut self.latest_invoice.invoice_tax,
                                     0.0..=100.0,
                                 )
                                 .text("Tax rate")
@@ -1305,7 +1392,7 @@ impl Data for GuiApp {
                         ui.vertical_centered(|ui| {
                             ui.heading("Services");
                             for (pos, service) in
-                                self.latest_invoice.invoice.services.iter_mut().enumerate()
+                                self.latest_invoice.services.iter_mut().enumerate()
                             {
                                 ui.horizontal(|ui| {
                                     ui.add(egui::TextEdit::multiline(&mut service.service_name))
@@ -1339,7 +1426,7 @@ impl Data for GuiApp {
                                 });
                             }
                             if let Some(pos) = delete {
-                                self.latest_invoice.invoice.services.remove(pos);
+                                self.latest_invoice.services.remove(pos);
                             }
                             if ui.button("Add service").clicked() {
                                 self.add_service = true;
@@ -1479,14 +1566,26 @@ impl Data for GuiApp {
                                 &mut self.empty_partner.partner_postal_code,
                             ))
                             .on_hover_text("Partner postal code");
-                            ui.add(egui::TextEdit::singleline(
-                                &mut self.empty_partner.partner_vat_id,
-                            ))
-                            .on_hover_text("Partner VAT");
 
+                            if self.empty_partner.is_vat_payer {
+                                ui.add(egui::TextEdit::singleline(
+                                    &mut self.empty_partner.partner_vat_id,
+                                ))
+                                .on_hover_text("Partner VAT");
+                            } else {
+                                ui.add(egui::TextEdit::singleline(&mut self.empty_partner.emso))
+                                    .on_hover_text("Emšo");
+                            }
+
+                            ui.add(egui::Checkbox::new(
+                                &mut self.empty_partner.is_vat_payer,
+                                "Is VAT Payer",
+                            ));
+                            // Add toast's for notifications and errors
                             ui.horizontal(|ui| {
                                 if ui.button("Create").clicked() {
                                     self.create_partner = false;
+
                                     self.save_partner(self.empty_partner.clone());
                                     //Reset the value
                                     self.empty_partner = Partner::default();
@@ -1658,6 +1757,27 @@ impl Data for GuiApp {
             todo!();
         }
     }
+    fn delete_company(&mut self, company: Company) {
+        let mut stmt = self
+            .db_connection
+            .prepare("DELETE FROM Company WHERE id = ?")
+            .unwrap();
+        stmt.execute(&[&company.id]).unwrap();
+    }
+    fn delete_partner(&mut self, partner: Partner) {
+        let mut stmt = self
+            .db_connection
+            .prepare("DELETE FROM Partner WHERE id = ?")
+            .unwrap();
+        stmt.execute(&[&partner.id]).unwrap();
+    }
+    fn delete_service(&mut self, service: Service) {
+        let mut stmt = self
+            .db_connection
+            .prepare("DELETE FROM Service WHERE id = ?")
+            .unwrap();
+        stmt.execute(&[&service.id]).unwrap();
+    }
 }
 
 impl eframe::App for GuiApp {
@@ -1673,11 +1793,11 @@ impl eframe::App for GuiApp {
         if self.refresh {
             if self.get_invoices().is_some() {
                 self.invoice_paths = self.get_invoices().unwrap();
-                self.parse_jsons();
+                self.parse_invoices();
                 self.refresh = false;
             } else {
                 self.invoice_paths = Vec::new();
-                self.parse_jsons();
+                self.parse_invoices();
                 self.refresh = false;
             }
         }

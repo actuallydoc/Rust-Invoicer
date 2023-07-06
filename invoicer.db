@@ -1,0 +1,63 @@
+
+-- Queries for making intital data
+CREATE TABLE Company {
+    id INTEGER PRIMARY KEY,
+    company_currency TEXT NOT NULL,
+    company_name TEXT NOT NULL,
+    company_address TEXT NOT NULL,
+    company_postal_code TEXT NOT NULL,
+    company_bankname TEXT NOT NULL,
+    company_vat_id TEXT NOT NULL,
+    company_iban TEXT NOT NULL,
+    company_swift TEXT NOT NULL,
+    company_registration_number TEXT NOT NULL,
+    company_phone TEXT NOT NULL,
+    company_signature TEXT,
+    company_signature_path TEXT,
+    company_vat_rate REAL NOT NULL,
+    company_business_registered_at TEXT NOT NULL
+}
+
+CREATE TABLE IF NOT EXISTS (
+    id INTEGER PRIMARY KEY,
+    partner_name TEXT NOT NULL,
+    partner_address TEXT NOT NULL,
+    partner_postal_code TEXT NOT NULL,
+    partner_vat_id TEXT NOT NULL,
+    is_vat_payer INTEGER NOT NULL,
+    emso TEXT NOT NULL
+)
+
+CREATE TABLE IF NOT EXISTS Invoice (
+    id INTEGER PRIMARY KEY,
+    invoice_number TEXT NOT NULL,
+    invoice_date TEXT NOT NULL,
+    invoice_location TEXT NOT NULL,
+    service_date TEXT NOT NULL,
+    invoice_currency TEXT NOT NULL,
+    due_date TEXT NOT NULL,
+    invoice_tax REAL NOT NULL,
+    invoice_reference TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    status TEXT NOT NULL,
+    company_id INTEGER NOT NULL,
+    partner_id INTEGER NOT NULL,
+    -- JSON string of services
+    services TEXT NOT NULL, 
+    -- !!!! PDF is stored as base64 string
+    pdf_base64 BLOB NOT NULL,
+    FOREIGN KEY (company_id) REFERENCES Company(id),
+    FOREIGN KEY (partner_id) REFERENCES Partner(id)
+)
+
+-- Create a query to create an invoice
+INSERT 
+
+
+
+CREATE TABLE IF NOT EXISTS Service (
+    id INTEGER PRIMARY KEY,
+    service_name TEXT NOT NULL,
+    service_quantity INTEGER NOT NULL,
+    service_price REAL NOT NULL,
+)
