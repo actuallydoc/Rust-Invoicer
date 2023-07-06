@@ -1,6 +1,5 @@
 use chrono::Datelike;
 use printpdf::*;
-use rusqlite::types::{FromSql, FromSqlResult, ValueRef};
 use serde::{Deserialize, Serialize};
 use std::{
     env,
@@ -18,22 +17,6 @@ pub enum PaymentStatus {
     #[default]
     Unpaid,
 }
-impl FromSql for PaymentStatus {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        match value {
-            ValueRef::Text(b) => {
-                let s = std::str::from_utf8(b).unwrap();
-                match s {
-                    "Paid" => Ok(PaymentStatus::Paid),
-                    "Unpaid" => Ok(PaymentStatus::Unpaid),
-                    _ => Err(rusqlite::types::FromSqlError::InvalidType),
-                }
-            }
-            _ => Err(rusqlite::types::FromSqlError::InvalidType),
-        }
-    }
-}
-
 impl Display for PaymentStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -149,38 +132,38 @@ pub struct Racun {
 #[serde(rename_all = "camelCase")]
 pub struct Invoice {
     pub id: i32,
-    pub invoice_number: Box<String>,
-    pub invoice_date: Box<String>,
-    pub invoice_location: Box<String>,
-    pub service_date: Box<String>,
-    pub invoice_currency: Box<String>,
-    pub due_date: Box<String>,
-    pub partner: Box<Partner>,
-    pub company: Box<Company>,
+    pub invoice_number: String,
+    pub invoice_date: String,
+    pub invoice_location: String,
+    pub service_date: String,
+    pub invoice_currency: String,
+    pub due_date: String,
+    pub partner: Partner,
+    pub company: Company,
     pub invoice_tax: f64,
-    pub invoice_reference: Box<String>,
-    pub services: Box<Vec<Service>>,
-    pub created_by: Box<String>,
-    pub status: Box<PaymentStatus>,
+    pub invoice_reference: String,
+    pub services: Vec<Service>,
+    pub created_by: String,
+    pub status: PaymentStatus,
 }
 
 impl Default for Invoice {
     fn default() -> Self {
         Self {
             id: rand::random::<i32>(),
-            invoice_number: Box::new("0000".to_string()),
-            invoice_date: Box::new("01.01.2023".to_string()),
-            invoice_location: Box::new("Boštanj".to_string()),
-            service_date: Box::new("01.01.2023".to_string()),
-            invoice_currency: Box::new("€".to_string()),
-            due_date: Box::new("01.01.2023".to_string()),
-            partner: Box::new(Partner::default()),
-            company: Box::new(Company::default()),
+            invoice_number: "0000".to_string(),
+            invoice_date: "01.01.2023".to_string(),
+            invoice_location: "Boštanj".to_string(),
+            service_date: "01.01.2023".to_string(),
+            invoice_currency: "€".to_string(),
+            due_date: "01.01.2023".to_string(),
+            partner: Partner::default(),
+            company: Company::default(),
             invoice_tax: 0.0,
-            invoice_reference: Box::new("SI".to_string()),
-            services: Box::new(vec![Service::default()]),
-            created_by: Box::new("Invoicer".to_string()),
-            status: Box::new(PaymentStatus::Unpaid),
+            invoice_reference: "SI".to_string(),
+            services: vec![Service::default()],
+            created_by: "Invoicer".to_string(),
+            status: PaymentStatus::Unpaid,
         }
     }
 }
@@ -746,7 +729,7 @@ pub fn render_invoice_header(
         standard_font,
     );
     //Rok plačila
-    if *racun.invoice.due_date == "" {
+    if racun.invoice.due_date == "" {
     } else {
         layer.use_text(
             format!("Rok plačila: {}", racun.invoice.due_date),
@@ -827,7 +810,7 @@ pub fn init(racun: &Racun, sig_path: Option<&Path>) -> Result<(), Box<dyn Error>
 pub fn save_to_json(racun: &Racun) {
     let cwd = env::current_dir().expect("Couldn't get current directory");
     let invoice_dir = cwd.join("invoices");
-    let invoice_number_dir = invoice_dir.join(&*racun.invoice.invoice_number);
+    let invoice_number_dir = invoice_dir.join(&racun.invoice.invoice_number);
 
     if !invoice_number_dir.exists() {
         fs::create_dir(&invoice_number_dir).expect("Couldn't create invoice directory");
@@ -849,7 +832,7 @@ pub fn save_invoice(doc: PdfDocumentReference, racun: &Racun) -> Option<(PathBuf
     //Then save the invoice in that directory
     let cwd = env::current_dir().expect("Couldn't get current directory");
     let invoice_dir = cwd.join("invoices");
-    let invoice_number_dir = invoice_dir.join(&*racun.invoice.invoice_number);
+    let invoice_number_dir = invoice_dir.join(&racun.invoice.invoice_number);
 
     if !invoice_dir.exists() {
         fs::create_dir(invoice_dir).expect("Couldn't create directory(It might already exist?)");

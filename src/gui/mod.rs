@@ -1,7 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use crate::invoicer::{
-    init, Company, Invoice, InvoiceStructure, Partner, PaymentStatus, Racun, Service,
-};
+use crate::invoicer::{init, Company, Invoice, Partner, Racun, Service};
 
 use eframe::egui;
 use eframe::{self, IconData};
@@ -26,7 +24,7 @@ struct GuiApp {
     show_confirmation_dialog: bool,
     show_image: bool,
     invoice_paths: Vec<DirEntry>,
-    invoices: Vec<Invoice>,
+    json_data: Vec<Racun>,
     delete_invoice: bool,
     clicked_pdf_path: PathBuf,
     texture: Option<TextureHandle>,
@@ -35,8 +33,8 @@ struct GuiApp {
     edit: bool,
     selected_signature: Option<String>,
     signature_path: Option<PathBuf>,
-    clicked_invoice: Invoice,
-    latest_invoice: Invoice,
+    clicked_invoice: Racun,
+    latest_invoice: Racun,
     clicked_company: Company,
     clicked_partner: Partner,
     clicked_service: Service,
@@ -65,10 +63,10 @@ struct GuiApp {
 trait Data {
     fn new() -> Self;
     //Pdf functions
-    fn generate_pdf(&mut self, invoice: Invoice) -> bool;
+    fn generate_pdf(&mut self, invoice: Racun) -> bool;
     fn save_invoice(&mut self, invoice: Invoice);
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>>;
-    fn parse_invoices(&mut self);
+    fn parse_jsons(&mut self);
     fn get_partners(&mut self);
     fn get_services(&mut self);
     fn get_companies(&mut self);
@@ -116,7 +114,7 @@ impl Data for GuiApp {
             show_confirmation_dialog: false,
             show_image: false,
             invoice_paths: Vec::new(),
-            invoices: Vec::new(),
+            json_data: Vec::new(),
             companies: Vec::new(),
             partners: Vec::new(),
             services: Vec::new(),
@@ -130,9 +128,9 @@ impl Data for GuiApp {
             create_service: false,
             selected_signature: None,
             signature_path: None,
-            latest_invoice: Invoice::default(),
+            latest_invoice: Racun::default(),
             add_service: false,
-            clicked_invoice: Invoice::default(),
+            clicked_invoice: Racun::default(),
             manage_companies: false,
             edit_company: false,
             manage_partners: false,
@@ -236,7 +234,7 @@ CREATE TABLE IF NOT EXISTS Company (
             .unwrap();
         this.get_partners();
         this.get_services();
-        this.parse_invoices();
+        this.parse_jsons();
         this
     }
     fn get_invoices(&mut self) -> Option<Vec<DirEntry>> {
@@ -348,10 +346,8 @@ CREATE TABLE IF NOT EXISTS Company (
         self.get_services();
     }
     fn save_invoice(&mut self, invoice: Invoice) {
-        let services = serde_json::to_string(&invoice.services).unwrap();
-
-        self.db_connection.execute("
-        INSERT INTO Invoice (invoice_number, invoice_date, invoice_location, service_date , invoice_currency, due_date , invoice_tax , invoice_reference, created_by,status, company_id , partner_id, services) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+        let mut stmt = self.db_connection.execute("
+        INSERT INTO Invoice (invoice_number, invoice_date, invoice_location, service_date , invoice_currency, due_date , invoice_tax , invoice_reference, created_by, company_id , partner_id) values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
         ", (
             invoice.invoice_number,
             invoice.invoice_date,
@@ -362,19 +358,12 @@ CREATE TABLE IF NOT EXISTS Company (
             invoice.invoice_tax,
             invoice.invoice_reference,
             invoice.created_by,
-            invoice.status.to_string(),
             invoice.company.id,
             invoice.partner.id,
-            services
         )).unwrap();
     }
-    fn generate_pdf(&mut self, invoice: Invoice) -> bool {
+    fn generate_pdf(&mut self, invoice: Racun) -> bool {
         print!("Generating pdf...");
-        let invoice = Racun {
-            invoice: invoice.clone(),
-            config: InvoiceStructure::default(),
-        };
-        self.save_invoice(invoice.invoice.clone());
         let temp_path = self.signature_path.clone();
         let handle = thread::spawn(move || {
             let mut state = false;
@@ -403,44 +392,32 @@ CREATE TABLE IF NOT EXISTS Company (
         let result = handle.join().unwrap();
         result
     }
-    // TODO
-    fn parse_invoices(&mut self) {
-        let mut stmt = self.db_connection.prepare("SELECT * FROM Invoice").unwrap();
-        let invoice_iter = stmt
-            .query_map([], |row| {
-                Ok(Invoice {
-                    id: row.get(0).unwrap(),
-                    invoice_number: Box::new(row.get(1).unwrap()),
-                    invoice_date: Box::new(row.get(2).unwrap()),
-                    invoice_location: Box::new(row.get(3).unwrap()),
-                    service_date: Box::new(row.get(4).unwrap()),
-                    invoice_currency: Box::new(row.get(5).unwrap()),
-                    due_date: Box::new(row.get(6).unwrap()),
-                    invoice_tax: row.get(7).unwrap(),
-                    invoice_reference: Box::new(row.get(8).unwrap()),
-                    created_by: Box::new(row.get(9).unwrap()),
-                    status: Box::new(
-                        serde_json::from_str(
-                            &row.get::<usize, PaymentStatus>(10).unwrap().to_string(),
-                        )
-                        .unwrap(),
-                    ),
-                    company: Box::new(
-                        serde_json::from_str(&row.get::<usize, Company>(11).unwrap().to_string())
-                            .unwrap(),
-                    ),
-                    partner: Box::new(
-                        serde_json::from_str(&row.get(12).unwrap().to_string()).unwrap(),
-                    ),
-                    services: Box::new(
-                        serde_json::from_str(&row.get(13).unwrap().to_string()).unwrap(),
-                    ),
-                })
-            })
-            .unwrap();
-        for invoice in invoice_iter {
-            self.invoices.push(invoice.unwrap());
+    fn parse_jsons(&mut self) {
+        let paths = self.get_invoices();
+        //Make a vector of invoices
+        let mut json_data: Vec<Racun> = Vec::new();
+        for path in paths.unwrap() {
+            let mut file_path = path.path();
+            file_path.push("output.json");
+            let mut file_content = match File::open(file_path.to_str().unwrap()) {
+                Ok(file) => file,
+                Err(_) => {
+                    continue;
+                } //*!TODO This panics alot if the user clicks refresh too fast or if the dir doesnt have the json (idk how tho) *//
+            };
+            let mut contents = String::new();
+            match file_content.read_to_string(&mut contents) {
+                Ok(_) => {
+                    let invoice: Racun = match serde_json::from_str(&contents) {
+                        Ok(invoice) => invoice,
+                        Err(err) => panic!("Could not deserialize the file, error code: {}", err),
+                    };
+                    json_data.push(invoice);
+                }
+                Err(err) => panic!("Could not read the json file, error code: {}", err),
+            };
         }
+        self.json_data = json_data;
     }
     fn render_image_window(&mut self, ctx: &egui::Context) {
         egui::Window::new("Pdf viewer")
@@ -649,7 +626,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                     )
                                     .clicked()
                                 {
-                                    self.latest_invoice.company = *self.temp_company.clone();
+                                    self.latest_invoice.invoice.company = self.temp_company.clone();
                                     self.change_company = false;
                                 };
                             }
@@ -686,7 +663,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                     )
                                     .clicked()
                                 {
-                                    self.latest_invoice.partner = *self.temp_partner.clone();
+                                    self.latest_invoice.invoice.partner = self.temp_partner.clone();
                                     self.change_partner = false;
                                 };
                             }
@@ -720,7 +697,7 @@ CREATE TABLE IF NOT EXISTS Company (
                     .clicked()
                 {
                     let new_service = Service::default();
-                    self.latest_invoice.services.push(new_service);
+                    self.latest_invoice.invoice.services.push(new_service);
                     // self.service_count += 1;
                     self.add_service = false;
                 }
@@ -734,7 +711,7 @@ CREATE TABLE IF NOT EXISTS Company (
                     .show_ui(ui, |ui| {
                         for service in self.services.iter() {
                             if ui.selectable_value(&mut self.temp_service , service.clone(), format!("{}", service.service_name.to_string())).clicked() {
-                                self.latest_invoice.services.push(service.clone());
+                                self.latest_invoice.invoice.services.push(service.clone());
                                 self.add_service = false;
                             };
                         }
@@ -797,7 +774,7 @@ CREATE TABLE IF NOT EXISTS Company (
     }
     fn render_main(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
         egui::Grid::new("invoice_grid").show(ui, |ui| {
-            if self.invoices.iter().len() == 0 {
+            if self.json_data.iter().len() == 0 {
                 ui.add(widgets::Spinner::new());
                 ui.label("No invoices found");
                 self.refresh = true;
@@ -815,23 +792,23 @@ CREATE TABLE IF NOT EXISTS Company (
                 ui.colored_label(WHITE, "Currency");
                 ui.colored_label(WHITE, "Actions");
                 ui.end_row();
-                for invoice in self.invoices.iter_mut() {
+                for invoice in self.json_data.iter_mut() {
                     ui.horizontal(|ui| {
-                        ui.label(invoice.invoice_number.to_string())
+                        ui.label(invoice.invoice.invoice_number.to_string())
                     });
-                    ui.label(invoice.invoice_date.to_string());
-                    ui.label(invoice.service_date.to_string());
-                    ui.label(invoice.due_date.to_string());
-                    ui.label(invoice.partner.partner_name.to_string());
-                    ui.label(invoice.company.company_name.to_string());
-                    ui.label(invoice.status.to_string());
-                    for service in &*invoice.services {
+                    ui.label(invoice.invoice.invoice_date.to_string());
+                    ui.label(invoice.invoice.service_date.to_string());
+                    ui.label(invoice.invoice.due_date.to_string());
+                    ui.label(invoice.invoice.partner.partner_name.to_string());
+                    ui.label(invoice.invoice.company.company_name.to_string());
+                    ui.label(invoice.invoice.status.to_string());
+                    for service in &invoice.invoice.services {
                         //Calculate the total price of the invoice
                         let mut total_price = 0.0;
-                        total_price += service.service_price * (100.0 + invoice.invoice_tax) / 100.0;
-                        ui.label(format!("{:.2} {}", total_price, invoice.invoice_currency));
+                        total_price += service.service_price * (100.0 + invoice.invoice.invoice_tax) / 100.0;
+                        ui.label(format!("{:.2} {}", total_price, invoice.invoice.invoice_currency));
                     }
-                    ui.label(invoice.invoice_currency.to_string());
+                    ui.label(invoice.invoice.invoice_currency.to_string());
                     ui.horizontal(|ui| {
                         //When a button is clicked make some actions edit will open the invoice data in another window and u will be able to edit it there
                         //View will open the invoice in a pdf viewer
@@ -840,7 +817,7 @@ CREATE TABLE IF NOT EXISTS Company (
                             for invoice_path in &self.invoice_paths {
                                 if invoice_path
                                     .path()
-                                    .ends_with(&*invoice.invoice_number)
+                                    .ends_with(&invoice.invoice.invoice_number)
                                 {
                                     self.clicked_pdf_path = invoice_path.path();
                                     //Get the JPG file from the clicked invoice and render it
@@ -895,7 +872,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                 for invoice_path in &self.invoice_paths {
                                     if invoice_path
                                         .path()
-                                        .ends_with(&*invoice.invoice_number)
+                                        .ends_with(&invoice.invoice.invoice_number)
                                     {
                                      //Delete the invoice from the json file
                                      if fs::remove_dir_all(invoice_path.path()).is_ok() {
@@ -917,7 +894,7 @@ CREATE TABLE IF NOT EXISTS Company (
             ui.with_layout(Layout::left_to_right(egui::Align::BOTTOM), |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Total invoices:");
-                    ui.label(self.invoices.iter().len().to_string());
+                    ui.label(self.json_data.iter().len().to_string());
                     ui.add_space(50.00);
                     ui.label(format!("Companies: {}", self.companies.len().to_string()));
                     ui.add_space(50.00);
@@ -946,52 +923,61 @@ CREATE TABLE IF NOT EXISTS Company (
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_name,
+                                &mut self.clicked_invoice.invoice.company.company_name,
                             ))
                             .on_hover_text("Company name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_iban,
+                                &mut self.clicked_invoice.invoice.company.company_iban,
                             ))
                             .on_hover_text("Company IBAN");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_swift,
+                                &mut self.clicked_invoice.invoice.company.company_swift,
                             ))
                             .on_hover_text("Company SWIFT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_bankname,
+                                &mut self.clicked_invoice.invoice.company.company_bankname,
                             ))
                             .on_hover_text("Company Bank Name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_address,
+                                &mut self.clicked_invoice.invoice.company.company_address,
                             ))
                             .on_hover_text("Company address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_postal_code,
+                                &mut self.clicked_invoice.invoice.company.company_postal_code,
                             ))
                             .on_hover_text("Company postal code");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_vat_id,
+                                &mut self.clicked_invoice.invoice.company.company_vat_id,
                             ))
                             .on_hover_text("Company VAT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_phone,
+                                &mut self.clicked_invoice.invoice.company.company_phone,
                             ))
                             .on_hover_text("Company PHONE");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_registration_number,
+                                &mut self
+                                    .clicked_invoice
+                                    .invoice
+                                    .company
+                                    .company_registration_number,
                             ))
                             .on_hover_text("Company Registeration number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_business_registered_at,
+                                &mut self
+                                    .clicked_invoice
+                                    .invoice
+                                    .company
+                                    .company_business_registered_at,
                             ))
                             .on_hover_text("Company Registered at");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.company.company_currency,
+                                &mut self.clicked_invoice.invoice.company.company_currency,
                             ))
                             .on_hover_text("Company currency");
                             ui.add_space(10.0);
                             if self
                                 .clicked_invoice
+                                .invoice
                                 .company
                                 .company_signature_path
                                 .is_some()
@@ -999,6 +985,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                 ui.label(format!(
                                     "Signature: {}",
                                     self.clicked_invoice
+                                        .invoice
                                         .company
                                         .company_signature_path
                                         .clone()
@@ -1036,7 +1023,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                         image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
                                     self.signature_path = Some(path.clone());
-                                    self.clicked_invoice.company.company_signature_path =
+                                    self.clicked_invoice.invoice.company.company_signature_path =
                                         Some(path);
                                 }
                             }
@@ -1052,75 +1039,75 @@ CREATE TABLE IF NOT EXISTS Company (
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.partner.partner_name,
+                                &mut self.clicked_invoice.invoice.partner.partner_name,
                             ))
                             .on_hover_text("Partner name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.partner.partner_address,
+                                &mut self.clicked_invoice.invoice.partner.partner_address,
                             ))
                             .on_hover_text("Partner Address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.partner.partner_postal_code,
+                                &mut self.clicked_invoice.invoice.partner.partner_postal_code,
                             ))
                             .on_hover_text("Partner postal code");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.clicked_invoice.partner.partner_vat_id,
+                                &mut self.clicked_invoice.invoice.partner.partner_vat_id,
                             ));
-                            if !self.clicked_invoice.partner.is_vat_payer {
+                            if !self.clicked_invoice.invoice.partner.is_vat_payer {
                                 ui.label("EMŠO:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.clicked_invoice.partner.emso,
+                                    &mut self.clicked_invoice.invoice.partner.emso,
                                 ))
                                 .on_hover_text("Partner Emšo");
                             } else {
                                 ui.label("VAT ID:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.clicked_invoice.partner.partner_vat_id,
+                                    &mut self.clicked_invoice.invoice.partner.partner_vat_id,
                                 ))
                                 .on_hover_text("Partner VAT ID");
                             }
                             ui.add(egui::Checkbox::new(
-                                &mut self.clicked_invoice.partner.is_vat_payer,
+                                &mut self.clicked_invoice.invoice.partner.is_vat_payer,
                                 "Partner is VAT payer",
                             ));
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.invoice_number,
+                                &mut self.clicked_invoice.invoice.invoice_number,
                             ))
                             .on_hover_text("Invoice number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.invoice_date,
+                                &mut self.clicked_invoice.invoice.invoice_date,
                             ))
                             .on_hover_text("Invoice date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.service_date,
+                                &mut self.clicked_invoice.invoice.service_date,
                             ))
                             .on_hover_text("Invoice service date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.due_date,
+                                &mut self.clicked_invoice.invoice.due_date,
                             ))
                             .on_hover_text("Invoice due date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.invoice_location,
+                                &mut self.clicked_invoice.invoice.invoice_location,
                             ))
                             .on_hover_text("Invoice location");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.invoice_currency,
+                                &mut self.clicked_invoice.invoice.invoice_currency,
                             ))
                             .on_hover_text("Invoice currency (SYMBOL)");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.invoice_reference,
+                                &mut self.clicked_invoice.invoice.invoice_reference,
                             ))
                             .on_hover_text("Invoice reference");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.clicked_invoice.created_by,
+                                &mut self.clicked_invoice.invoice.created_by,
                             ))
                             .on_hover_text("Created by");
                             ui.add(
                                 egui::Slider::new(
-                                    &mut self.clicked_invoice.invoice_tax,
+                                    &mut self.clicked_invoice.invoice.invoice_tax,
                                     0.0..=100.0,
                                 )
                                 .text("Tax rate")
@@ -1142,7 +1129,7 @@ CREATE TABLE IF NOT EXISTS Company (
                         ui.vertical_centered(|ui| {
                             ui.heading("Services");
                             for (pos, service) in
-                                self.clicked_invoice.services.iter_mut().enumerate()
+                                self.clicked_invoice.invoice.services.iter_mut().enumerate()
                             {
                                 ui.horizontal(|ui| {
                                     ui.add(egui::TextEdit::multiline(&mut service.service_name))
@@ -1176,7 +1163,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                 });
                             }
                             if let Some(pos) = delete {
-                                self.clicked_invoice.services.remove(pos);
+                                self.clicked_invoice.invoice.services.remove(pos);
                             }
                             if ui.button("Add service").clicked() {
                                 self.add_service = true;
@@ -1184,7 +1171,7 @@ CREATE TABLE IF NOT EXISTS Company (
                         });
                         if ui.button("Edit").clicked() {
                             //Locate the index
-                            // self.delete_invoice(self.clicked_invoice.clone());
+                            self.delete_invoice(self.clicked_invoice.clone());
                             self.generate_pdf(self.clicked_invoice.clone());
                             self.edit = false;
                         }
@@ -1213,47 +1200,55 @@ CREATE TABLE IF NOT EXISTS Company (
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_name,
+                                &mut self.latest_invoice.invoice.company.company_name,
                             ))
                             .on_hover_text("Company name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_iban,
+                                &mut self.latest_invoice.invoice.company.company_iban,
                             ))
                             .on_hover_text("Company IBAN");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_swift,
+                                &mut self.latest_invoice.invoice.company.company_swift,
                             ))
                             .on_hover_text("Company SWIFT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_bankname,
+                                &mut self.latest_invoice.invoice.company.company_bankname,
                             ))
                             .on_hover_text("Company Bank Name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_address,
+                                &mut self.latest_invoice.invoice.company.company_address,
                             ))
                             .on_hover_text("Company address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_postal_code,
+                                &mut self.latest_invoice.invoice.company.company_postal_code,
                             ))
                             .on_hover_text("Company postal code");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_vat_id,
+                                &mut self.latest_invoice.invoice.company.company_vat_id,
                             ))
                             .on_hover_text("Company VAT");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_phone,
+                                &mut self.latest_invoice.invoice.company.company_phone,
                             ))
                             .on_hover_text("Company PHONE");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_registration_number,
+                                &mut self
+                                    .latest_invoice
+                                    .invoice
+                                    .company
+                                    .company_registration_number,
                             ))
                             .on_hover_text("Company Registeration number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_business_registered_at,
+                                &mut self
+                                    .latest_invoice
+                                    .invoice
+                                    .company
+                                    .company_business_registered_at,
                             ))
                             .on_hover_text("Company Registered at");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.company.company_currency,
+                                &mut self.latest_invoice.invoice.company.company_currency,
                             ))
                             .on_hover_text("Company currency");
 
@@ -1291,7 +1286,8 @@ CREATE TABLE IF NOT EXISTS Company (
                                         image_base64::to_base64(path.as_os_str().to_str().unwrap());
                                     self.selected_signature = Some(base_string);
                                     self.signature_path = Some(path.clone());
-                                    self.latest_invoice.company.company_signature_path = Some(path);
+                                    self.latest_invoice.invoice.company.company_signature_path =
+                                        Some(path);
                                 }
                             }
                         });
@@ -1306,72 +1302,72 @@ CREATE TABLE IF NOT EXISTS Company (
                                 }
                             }
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.partner.partner_name,
+                                &mut self.latest_invoice.invoice.partner.partner_name,
                             ))
                             .on_hover_text("Partner name");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.partner.partner_address,
+                                &mut self.latest_invoice.invoice.partner.partner_address,
                             ))
                             .on_hover_text("Partner Address");
                             ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.partner.partner_postal_code,
+                                &mut self.latest_invoice.invoice.partner.partner_postal_code,
                             ))
                             .on_hover_text("Partner postal code");
-                            if !self.latest_invoice.partner.is_vat_payer {
+                            if !self.latest_invoice.invoice.partner.is_vat_payer {
                                 ui.label("EMŠO:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.latest_invoice.partner.emso,
+                                    &mut self.latest_invoice.invoice.partner.emso,
                                 ))
                                 .on_hover_text("Partner Emšo");
                             } else {
                                 ui.label("VAT ID:");
                                 ui.add(egui::TextEdit::singleline(
-                                    &mut self.latest_invoice.partner.partner_vat_id,
+                                    &mut self.latest_invoice.invoice.partner.partner_vat_id,
                                 ))
                                 .on_hover_text("Partner VAT ID");
                             }
                             ui.add(egui::Checkbox::new(
-                                &mut self.latest_invoice.partner.is_vat_payer,
+                                &mut self.latest_invoice.invoice.partner.is_vat_payer,
                                 "Partner is VAT payer",
                             ));
                         });
                         ui.vertical(|ui| {
                             ui.heading("Invoice data");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.invoice_number,
+                                &mut self.latest_invoice.invoice.invoice_number,
                             ))
                             .on_hover_text("Invoice number");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.invoice_date,
+                                &mut self.latest_invoice.invoice.invoice_date,
                             ))
                             .on_hover_text("Invoice date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.service_date,
+                                &mut self.latest_invoice.invoice.service_date,
                             ))
                             .on_hover_text("Invoice service date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.due_date,
+                                &mut self.latest_invoice.invoice.due_date,
                             ))
                             .on_hover_text("Invoice due date");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.invoice_location,
+                                &mut self.latest_invoice.invoice.invoice_location,
                             ))
                             .on_hover_text("Invoice location");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.invoice_currency,
+                                &mut self.latest_invoice.invoice.invoice_currency,
                             ))
                             .on_hover_text("Invoice currency (SYMBOL)");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.invoice_reference,
+                                &mut self.latest_invoice.invoice.invoice_reference,
                             ))
                             .on_hover_text("Invoice reference");
                             ui.add(egui::TextEdit::singleline(
-                                &mut *self.latest_invoice.created_by,
+                                &mut self.latest_invoice.invoice.created_by,
                             ))
                             .on_hover_text("Created by");
                             ui.add(
                                 egui::Slider::new(
-                                    &mut self.latest_invoice.invoice_tax,
+                                    &mut self.latest_invoice.invoice.invoice_tax,
                                     0.0..=100.0,
                                 )
                                 .text("Tax rate")
@@ -1392,7 +1388,7 @@ CREATE TABLE IF NOT EXISTS Company (
                         ui.vertical_centered(|ui| {
                             ui.heading("Services");
                             for (pos, service) in
-                                self.latest_invoice.services.iter_mut().enumerate()
+                                self.latest_invoice.invoice.services.iter_mut().enumerate()
                             {
                                 ui.horizontal(|ui| {
                                     ui.add(egui::TextEdit::multiline(&mut service.service_name))
@@ -1426,7 +1422,7 @@ CREATE TABLE IF NOT EXISTS Company (
                                 });
                             }
                             if let Some(pos) = delete {
-                                self.latest_invoice.services.remove(pos);
+                                self.latest_invoice.invoice.services.remove(pos);
                             }
                             if ui.button("Add service").clicked() {
                                 self.add_service = true;
@@ -1793,11 +1789,11 @@ impl eframe::App for GuiApp {
         if self.refresh {
             if self.get_invoices().is_some() {
                 self.invoice_paths = self.get_invoices().unwrap();
-                self.parse_invoices();
+                self.parse_jsons();
                 self.refresh = false;
             } else {
                 self.invoice_paths = Vec::new();
-                self.parse_invoices();
+                self.parse_jsons();
                 self.refresh = false;
             }
         }
