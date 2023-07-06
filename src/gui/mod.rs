@@ -969,8 +969,20 @@ impl Data for GuiApp {
                             .on_hover_text("Partner postal code");
                             ui.add(egui::TextEdit::singleline(
                                 &mut self.clicked_invoice.invoice.partner.partner_vat_id,
-                            ))
-                            .on_hover_text("Partner VAT");
+                            ));
+                            if !self.clicked_invoice.invoice.partner.is_vat_payer {
+                                ui.label("EMŠO:");
+                                ui.add(egui::TextEdit::singleline(
+                                    &mut self.clicked_invoice.invoice.partner.emso,
+                                ))
+                                .on_hover_text("Partner Emšo");
+                            } else {
+                                ui.label("VAT ID:");
+                                ui.add(egui::TextEdit::singleline(
+                                    &mut self.clicked_invoice.invoice.partner.partner_vat_id,
+                                ))
+                                .on_hover_text("Partner VAT ID");
+                            }
                             ui.add(egui::Checkbox::new(
                                 &mut self.clicked_invoice.invoice.partner.is_vat_payer,
                                 "Partner is VAT payer",
@@ -1218,10 +1230,19 @@ impl Data for GuiApp {
                                 &mut self.latest_invoice.invoice.partner.partner_postal_code,
                             ))
                             .on_hover_text("Partner postal code");
-                            ui.add(egui::TextEdit::singleline(
-                                &mut self.latest_invoice.invoice.partner.partner_vat_id,
-                            ))
-                            .on_hover_text("Partner VAT");
+                            if !self.latest_invoice.invoice.partner.is_vat_payer {
+                                ui.label("EMŠO:");
+                                ui.add(egui::TextEdit::singleline(
+                                    &mut self.latest_invoice.invoice.partner.emso,
+                                ))
+                                .on_hover_text("Partner Emšo");
+                            } else {
+                                ui.label("VAT ID:");
+                                ui.add(egui::TextEdit::singleline(
+                                    &mut self.latest_invoice.invoice.partner.partner_vat_id,
+                                ))
+                                .on_hover_text("Partner VAT ID");
+                            }
                             ui.add(egui::Checkbox::new(
                                 &mut self.latest_invoice.invoice.partner.is_vat_payer,
                                 "Partner is VAT payer",

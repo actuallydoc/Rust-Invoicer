@@ -48,6 +48,7 @@ pub struct Partner {
     pub partner_postal_code: String,
     pub partner_vat_id: String,
     pub is_vat_payer: bool,
+    pub emso: String,
 }
 impl Partner {
     pub fn default() -> Self {
@@ -57,7 +58,8 @@ impl Partner {
             partner_address: "Address".to_string(),
             partner_postal_code: "0000".to_string(),
             partner_vat_id: "00000000".to_string(),
-            is_vat_payer: true,
+            is_vat_payer: false,
+            emso: "0000000000000".to_string(),
         }
     }
 }
@@ -150,15 +152,15 @@ impl Default for Invoice {
         Self {
             id: rand::random::<i32>(),
             invoice_number: "0000".to_string(),
-            invoice_date: "01.01.2021".to_string(),
-            invoice_location: "Ljubljana".to_string(),
-            service_date: "01.01.2021".to_string(),
-            invoice_currency: "EUR".to_string(),
-            due_date: "01.01.2021".to_string(),
+            invoice_date: "01.01.2023".to_string(),
+            invoice_location: "Boštanj".to_string(),
+            service_date: "01.01.2023".to_string(),
+            invoice_currency: "€".to_string(),
+            due_date: "01.01.2023".to_string(),
             partner: Partner::default(),
             company: Company::default(),
             invoice_tax: 0.0,
-            invoice_reference: "0000".to_string(),
+            invoice_reference: "SI".to_string(),
             services: vec![Service::default()],
             created_by: "Invoicer".to_string(),
             status: PaymentStatus::Unpaid,
@@ -234,7 +236,6 @@ pub fn render_payment_footer(
     let mut base_x = Mm(15.0);
 
     let invoice_number = format!("{:0>4}", racun.invoice.invoice_number);
-    let formatted_reference = format!("SI00 {}-{}", invoice_number, current_year);
 
     layer.use_text(
         format!(
