@@ -232,10 +232,14 @@ pub fn render_payment_footer(
     let current_year = chrono::Utc::now().year();
     let mut y = y - Mm(10.0);
     let mut base_x = Mm(15.0);
+
+    let invoice_number = format!("{:0>4}", racun.invoice.invoice_number);
+    let formatted_reference = format!("SI00 {}-{}", invoice_number, current_year);
+
     layer.use_text(
         format!(
-            "Sklic za številko: {}00-{:04}-{}",
-            racun.invoice.invoice_reference, racun.invoice.invoice_number, current_year
+            "Sklic za številko: {}00 {}-{}",
+            racun.invoice.invoice_reference, invoice_number, current_year
         ),
         9.0,
         base_x,
@@ -270,24 +274,24 @@ pub fn render_payment_footer(
     //Also add the image the the bottom and "Signature text"
     layer.use_text("Žig:", 9.0, base_x, y, standard_font);
     //TODO Managed to get the image to work, but idk how to place it to x and y on the page
-    if path.is_some() {
-        let _image_file = File::open(&path.unwrap()).unwrap();
-        use ::image::io::Reader as ImageReader;
-        let image = ImageReader::open(&path.unwrap()).unwrap().decode().unwrap();
-        let _image_file_2 = ImageXObject {
-            width: Px(image.width() as usize / 2),
-            height: Px(image.height() as usize / 2),
-            color_space: ColorSpace::Rgba,
-            bits_per_component: ColorBits::Bit8,
-            interpolate: true,
-            /* put your bytes here. Make sure the total number of bytes =
-            width * height * (bytes per component * number of components)
-            (e.g. 2 (bytes) x 3 (colors) for RGB 16bit) */
-            image_data: image.into_bytes(),
-            image_filter: None,  /* does not work yet */
-            clipping_bbox: None, /* doesn't work either, untested */
-        };
-    }
+    // if path.is_some() {
+    //     let _image_file = File::open(&path.unwrap()).unwrap();
+    //     use image::io::Reader as ImageReader;
+    //     let image = ImageReader::open(&path.unwrap()).unwrap().decode().unwrap();
+    //     let _image_file_2 = ImageXObject {
+    //         width: Px(image.width() as usize / 2),
+    //         height: Px(image.height() as usize / 2),
+    //         color_space: ColorSpace::Rgba,
+    //         bits_per_component: ColorBits::Bit8,
+    //         interpolate: true,
+    //         /* put your bytes here. Make sure the total number of bytes =
+    //         width * height * (bytes per component * number of components)
+    //         (e.g. 2 (bytes) x 3 (colors) for RGB 16bit) */
+    //         image_data: image.into_bytes(),
+    //         image_filter: None,  /* does not work yet */
+    //         clipping_bbox: None, /* doesn't work either, untested */
+    //     };
+    // }
     //TODO Managed to get the image to work, but idk how to place it to x and y on the page
     // let image2 = Image::from(image_file_2);
     // image2.add_to_layer(layer.clone(), ImageTransform {
@@ -585,9 +589,17 @@ pub fn render_partner_header(
         standard_font,
     );
     //Partner tax number only if the partner is a VAT payer
-    if (racun.invoice.partner.is_vat_payer) {
+    if racun.invoice.partner.is_vat_payer {
         layer.use_text(
             format!("ID za DDV kupca: {}", racun.invoice.partner.partner_vat_id),
+            racun.config.font_sizes.small,
+            Mm(15.0),
+            Mm(202.0),
+            standard_font,
+        );
+    } else {
+        layer.use_text(
+            format!("EMŠO: {}", racun.invoice.partner.partner_vat_id),
             racun.config.font_sizes.small,
             Mm(15.0),
             Mm(202.0),
@@ -630,7 +642,7 @@ pub fn render_company_header(
 
     //Company tax number
     layer.use_text(
-        format!("ID za DDV: SI{}", racun.invoice.company.company_vat_id),
+        format!("ID za DDV: {}", racun.invoice.company.company_vat_id),
         racun.config.font_sizes.small,
         Mm(132.0),
         Mm(263.0),
@@ -716,13 +728,16 @@ pub fn render_invoice_header(
         standard_font,
     );
     //Rok plačila
-    layer.use_text(
-        format!("Rok plačila: {}", racun.invoice.due_date),
-        racun.config.font_sizes.small,
-        Mm(15.0),
-        Mm(266.0),
-        standard_font,
-    );
+    if racun.invoice.due_date == "" {
+    } else {
+        layer.use_text(
+            format!("Rok plačila: {}", racun.invoice.due_date),
+            racun.config.font_sizes.small,
+            Mm(15.0),
+            Mm(266.0),
+            standard_font,
+        );
+    }
 }
 pub fn init(racun: &Racun, sig_path: Option<&Path>) -> Result<(), Box<dyn Error>> {
     let (doc, page1, layer1) = PdfDocument::new(
